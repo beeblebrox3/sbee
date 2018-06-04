@@ -1,6 +1,7 @@
 # sbee - Simple Buffered Event Emitter
 
 [![Build Status](https://travis-ci.org/beeblebrox3/sbee.svg?branch=master)](https://travis-ci.org/beeblebrox3/sbee)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fbeeblebrox3%2Fsbee.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fbeeblebrox3%2Fsbee?ref=badge_shield)
 
 > WIP
 
@@ -41,3 +42,7 @@ instance.flush("my buffer"); // wil lcal the handler 2 times, cause we emitted 2
 instance.cleanBuffer("my buffer");
 ```
 
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fbeeblebrox3%2Fsbee.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fbeeblebrox3%2Fsbee?ref=badge_large)
