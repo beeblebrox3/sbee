@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "target": "es2016",
+        "noResolve": false,
+        "outDir": "lib",
+        "declaration": true,
+        "removeComments": true
+    },
+    "exclude": [
+        "node_modules",
+        "**/node_modules/*",
+        "src/**/*.test.*"
+    ],
+    "compileOnSave": true,
+    "typeAcquisition": {
+        "enable": true
+    }
+}

@@ -13,25 +13,68 @@ interface BufferedEventEmitter {
     unsubscribeAll(eventsName: String): void
 
     debugEnable(value: Boolean): void
+
+    FLUSH_BUFFER_EVENT_NAME: string
+    CLEAN_BUFFER_EVENT_NAME: string
 }
 
+/** Options to configure the EventEmiter */
 interface BufferedEventEmitterOptions {
-    ttl?: Number
-    maintenanceChance?: Number
+    /**
+     * TimeToLive: Time in seconds that the buffer can exists without activity.
+     * After this period it is't valid anymore and can eventually will be removed.
+     */
+    ttl?: number
+
+    /**
+     * Every call to some methods will have a chance to run the maintenance, witch
+     * is the process of remove expired buffers not flushed. This number define
+     * the chance of this process happen on a method call (percentual);
+     * Examploe: 10 => 10% chance of running maintenance
+     */
+    maintenanceChance?: number
 }
 
+/**
+ * The buffer
+ */
 interface BufferedEventEmitterBuffer {
-    id: Number|String
+    /** Unique id of the buffer */
+    id: number|String
+
+    /**
+     * Extra information about the buffer.
+     * You can put anything you want in here.
+     */
     context: any
+
+    /**
+     * Creation date of the buffer
+     */
     created: Date
+
+    /**
+     * Date of the last change of the buffer - usually the creation date of the last
+     * event.
+     */
     lastActivity: Date
+
+    /**
+     * Store emitted events.
+     */
     events: BufferedEventEmitterBufferEvents
 }
 
+/**
+ *
+ */
 interface BufferedEventEmitterBufferHash {
-    [key: String]: BufferedEventEmitterBuffer[]
+    [propName: string]: BufferedEventEmitterBuffer
 }
 
+/**
+ *
+ */
 interface BufferedEventEmitterBufferEvents {
-    [key: String]: Array[]
+    [propName: string]: any[]
 }

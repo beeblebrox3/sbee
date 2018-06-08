@@ -1,4 +1,4 @@
-const BufferedEventEmitter = require('./BufferedEventEmitter');
+import BufferedEventEmitter from './BufferedEventEmitter';
 
 test('flush event', () => {
     const instance = new BufferedEventEmitter({});
@@ -72,7 +72,7 @@ test('maintenance shoud clean old buffers', () => {
     instance.emitBuffered(id, "foo", 1);
 
     setTimeout(() => {
-        instance._maintenance();
+        instance.maintenance();
         expect(instance.flush(id)).toThrow("BUFFER NOT FOUND");
         expect(handler.mock.calls.length).toBe(0);
     }, 2000);
