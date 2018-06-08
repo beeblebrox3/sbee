@@ -1,9 +1,10 @@
 # sbee - Simple Buffered Event Emitter
 
 [![Build Status](https://travis-ci.org/beeblebrox3/sbee.svg?branch=master)](https://travis-ci.org/beeblebrox3/sbee)
+[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/beeblebrox3/sbee/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/beeblebrox3/sbee/?branch=master)
+[![Code Coverage](https://scrutinizer-ci.com/g/beeblebrox3/sbee/badges/coverage.png?b=master)](https://scrutinizer-ci.com/g/beeblebrox3/sbee/?branch=master)
+[![Code Intelligence Status](https://scrutinizer-ci.com/g/beeblebrox3/sbee/badges/code-intelligence.svg?b=master)](https://scrutinizer-ci.com/code-intelligence)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fbeeblebrox3%2Fsbee.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fbeeblebrox3%2Fsbee?ref=badge_shield)
-
-> WIP
 
 This project is a simple implementation of a event emitter, but with one particularity: you can create buffers to only emit the events when some condition occurs.
 Like a relational database transaction, but for events. Like this:
