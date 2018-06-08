@@ -6,16 +6,15 @@
   "types": "src/BufferedEventEmitter.t.ts",
   "scripts": {
     "test": "jest",
-    "test-watch": "jest --watchAll"
+    "test-watch": "jest --watchAll",
+    "build": "rimraf lib && tsc"
   },
   "author": "Luís Henrique Faria <luish.faria@gmail.com>",
   "devDependencies": {
-    "jest": "^22.4.2"
-  },
-  "jest": {
-    "collectCoverageFrom": [
-      "src/**/*.js"
-    ],
-    "collectCoverage": true
+    "@types/jest": "^23.0.0",
+    "jest": "^23.1.0",
+    "rimraf": "^2.6.2",
+    "ts-jest": "^22.4.6",
+    "typescript": "^2.9.1"
   }
 }
