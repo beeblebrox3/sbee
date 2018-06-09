@@ -1,3 +1,5 @@
+/// <reference path="BufferedMessenger.d.ts" />
+
 const ERR_BUFFER_NOT_FOUND = "BUFFER NOT FOUND"
 const ERR_BUFFER_ALREADY_EXISTS = "BUFFER ALREADY EXISTS"
 
@@ -7,10 +9,10 @@ const CLEAN_BUFFER_EVENT_NAME = "BUFFER:clean"
 const BUFFER_RETENTION_PERIOD_SECONDS = 1
 const MAINTENANCE_CHANCE = 100
 
-const cp = object => Object.assign({}, object)
+const cp = object => JSON.parse(JSON.stringify(object));
 const isObject = object => typeof object === "object"
 
-class BufferedEventEmitter {
+export class BufferedEventEmitter {
     private debug = false
     private map = {}
     private bufferedMessages: BufferedEventEmitterBufferHash = {}
@@ -20,10 +22,7 @@ class BufferedEventEmitter {
     public static FLUSH_BUFFER_EVENT_NAME = FLUSH_BUFFER_EVENT_NAME
     public static CLEAN_BUFFER_EVENT_NAME = CLEAN_BUFFER_EVENT_NAME
 
-    /**
-     * @param {BufferedEventEmitterOptions} options
-     */
-    constructor(options: BufferedEventEmitterOptions) {
+    constructor(options: BufferedEventEmitterOptions = {}) {
         this.ttl = options.ttl || this.ttl
         this.maintenanceChanve = options.maintenanceChance || this.maintenanceChanve
     }
@@ -41,7 +40,7 @@ class BufferedEventEmitter {
     /**
      * Creates a named buffer
      */
-    createBuffer(bufferId: number | string, context: any) {
+    createBuffer(bufferId: number | string, context: any = {}) {
         this.log(`Trying to create buffer ${bufferId}`)
         this.checkMaintenance()
 
@@ -242,5 +241,3 @@ class BufferedEventEmitter {
         })
     }
 }
-
-export default BufferedEventEmitter

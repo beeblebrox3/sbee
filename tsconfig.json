@@ -1,16 +1,23 @@
 {
     "compilerOptions": {
         "module": "commonjs",
-        "target": "es2016",
+        "target": "es3",
         "noResolve": false,
-        "outDir": "lib",
+        "rootDir": "./src",
+        "outDir": "./lib",
         "declaration": true,
-        "removeComments": true
+        "declarationMap": true,
+        "diagnostics": true,
+        "newLine": "LF",
+        "esModuleInterop": true,
+        "moduleResolution": "node"
     },
     "exclude": [
         "node_modules",
         "**/node_modules/*",
-        "src/**/*.test.*"
+        "src/**/*.test.*",
+        "lib",
+        "dist"
     ],
     "compileOnSave": true,
     "typeAcquisition": {

@@ -1,4 +1,4 @@
-import BufferedEventEmitter from './BufferedEventEmitter';
+import { BufferedEventEmitter } from './BufferedEventEmitter';
 
 test('flush event', () => {
     const instance = new BufferedEventEmitter({});

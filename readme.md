@@ -11,10 +11,10 @@ Like a relational database transaction, but for events. Like this:
 
 
 ```javascript
-const ee = require("sbee");
+const sbee = require("sbee");
 
 // Create an instance of the event emiter
-const instance = new ee();
+const instance = new sbee.BufferedEventEmitter();
 
 // Now you can register handlers to your events:
 // Every event of the type "the-event" will call this function.

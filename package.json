@@ -1,20 +1,48 @@
 {
   "name": "sbee",
-  "version": "0.0.2",
   "description": "Simple Buffered Event Emitter",
-  "main": "src/BufferedEventEmitter.js",
-  "types": "src/BufferedEventEmitter.t.ts",
+  "keywords": [
+    "event emitter",
+    "buffered event emitter"
+  ],
+  "version": "0.0.2",
+  "homepage": "https://github.com/beeblebrox3/sbee",
+  "license": "MIT",
+  "author": {
+    "email": "luish.faria@gmail.com",
+    "name": "Luís Henrique Faria",
+    "url": "https://luish.com.br/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/beeblebrox3/sbee.git"
+  },
+  "bugs": {
+    "url": "https://github.com/beeblebrox3/sbee/issues"
+  },
+  "files": [
+    "docs/*",
+    "lib/*"
+  ],
+  "main": "lib/BufferedEventEmitter.js",
+  "types": "lib/BufferedEventEmitter.d.ts",
+  "directories": {
+    "doc": "./docs",
+    "lib": "/lib"
+  },
   "scripts": {
+    "docs": "typedoc",
+    "compile": "tsc",
     "test": "jest",
     "test-watch": "jest --watchAll",
-    "build": "rimraf lib && tsc"
+    "build": "rimraf lib && npm run compile && npm run docs"
   },
-  "author": "Luís Henrique Faria <luish.faria@gmail.com>",
   "devDependencies": {
     "@types/jest": "^23.0.0",
     "jest": "^23.1.0",
     "rimraf": "^2.6.2",
     "ts-jest": "^22.4.6",
+    "typedoc": "^0.11.1",
     "typescript": "^2.9.1"
   }
 }
