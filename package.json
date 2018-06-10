@@ -8,6 +8,9 @@
   "version": "0.0.2",
   "homepage": "https://github.com/beeblebrox3/sbee",
   "license": "MIT",
+  "engines": {
+    "node": ">=4"
+  },
   "author": {
     "email": "luish.faria@gmail.com",
     "name": "Luís Henrique Faria",
@@ -38,10 +41,10 @@
     "build": "rimraf lib && npm run compile && npm run docs"
   },
   "devDependencies": {
-    "@types/jest": "^23.0.0",
-    "jest": "^23.1.0",
+    "@types/jest": "^21.0.0",
+    "jest": "^21.1.0",
     "rimraf": "^2.6.2",
-    "ts-jest": "^22.4.6",
+    "ts-jest": "^21.0.0",
     "typedoc": "^0.11.1",
     "typescript": "^2.9.1"
   }
