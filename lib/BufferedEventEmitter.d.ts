@@ -1,4 +1,4 @@
-/// <reference path="../src/BufferedMessenger.d.ts" />
+import { BufferedEventEmitterOptions } from "./types";
 export declare class BufferedEventEmitter {
     private debug;
     private map;

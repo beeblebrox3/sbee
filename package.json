@@ -28,7 +28,7 @@
     "lib/*"
   ],
   "main": "lib/BufferedEventEmitter.js",
-  "types": "lib/BufferedEventEmitter.d.ts",
+  "types": "lib/types.d.ts",
   "directories": {
     "doc": "./docs",
     "lib": "/lib"
