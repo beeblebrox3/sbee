@@ -1,4 +1,8 @@
-/// <reference path="BufferedMessenger.d.ts" />
+import {
+    BufferedEventEmitterBuffer,
+    BufferedEventEmitterOptions,
+    BufferedEventEmitterBufferHash
+} from "./types"
 
 const ERR_BUFFER_NOT_FOUND = "BUFFER NOT FOUND"
 const ERR_BUFFER_ALREADY_EXISTS = "BUFFER ALREADY EXISTS"
