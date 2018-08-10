@@ -5,7 +5,7 @@
     "event emitter",
     "buffered event emitter"
   ],
-  "version": "0.0.2",
+  "version": "0.0.3",
   "homepage": "https://github.com/beeblebrox3/sbee",
   "license": "MIT",
   "engines": {
