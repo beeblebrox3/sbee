@@ -28,7 +28,7 @@
     "lib/*"
   ],
   "main": "lib/BufferedEventEmitter.js",
-  "types": "lib/types.d.ts",
+  "types": "lib/BufferedEventEmitter.d.ts",
   "directories": {
     "doc": "./docs",
     "lib": "/lib"
@@ -41,11 +41,11 @@
     "build": "rimraf lib && npm run compile && npm run docs"
   },
   "devDependencies": {
-    "@types/jest": "^21.0.0",
-    "jest": "^21.1.0",
+    "@types/jest": "^23.0.0",
+    "jest": "^23.0.0",
     "rimraf": "^2.6.2",
-    "ts-jest": "^21.0.0",
+    "ts-jest": "^23.0.0",
     "typedoc": "^0.11.1",
-    "typescript": "^2.9.1"
+    "typescript": "^3.0.0"
   }
 }
