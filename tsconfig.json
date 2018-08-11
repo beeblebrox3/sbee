@@ -1,12 +1,12 @@
 {
     "compilerOptions": {
         "module": "commonjs",
-        "target": "es3",
+        "target": "es6",
         "noResolve": false,
         "rootDir": "./src",
         "outDir": "./lib",
         "declaration": true,
-        "declarationMap": true,
+        "declarationMap": false,
         "diagnostics": true,
         "newLine": "LF",
         "esModuleInterop": true,

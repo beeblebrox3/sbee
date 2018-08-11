@@ -70,10 +70,10 @@
 				<a href="https://app.fossa.io/projects/git%2Bgithub.com%2Fbeeblebrox3%2Fsbee?ref=badge_shield"><img src="https://app.fossa.io/api/projects/git%2Bgithub.com%2Fbeeblebrox3%2Fsbee.svg?type=shield" alt="FOSSA Status"></a></p>
 				<p>This project is a simple implementation of a event emitter, but with one particularity: you can create buffers to only emit the events when some condition occurs.
 				Like a relational database transaction, but for events. Like this:</p>
-				<pre><code class="lang-javascript"><span class="hljs-keyword">const</span> ee = <span class="hljs-built_in">require</span>(<span class="hljs-string">"sbee"</span>);
+				<pre><code class="lang-javascript"><span class="hljs-keyword">const</span> sbee = <span class="hljs-built_in">require</span>(<span class="hljs-string">"sbee"</span>);
 
 <span class="hljs-comment">// Create an instance of the event emiter</span>
-<span class="hljs-keyword">const</span> instance = <span class="hljs-keyword">new</span> ee();
+<span class="hljs-keyword">const</span> instance = <span class="hljs-keyword">new</span> sbee.BufferedEventEmitter();
 
 <span class="hljs-comment">// Now you can register handlers to your events:</span>
 <span class="hljs-comment">// Every event of the type "the-event" will call this function.</span>
@@ -118,16 +118,16 @@ instance.cleanBuffer(<span class="hljs-string">"my buffer"</span>);
 					<li class=" tsd-kind-class">
 						<a href="classes/bufferedeventemitter.html" class="tsd-kind-icon">Buffered<wbr>Event<wbr>Emitter</a>
 					</li>
-					<li class=" tsd-kind-interface tsd-is-not-exported">
+					<li class=" tsd-kind-interface">
 						<a href="interfaces/bufferedeventemitterbuffer.html" class="tsd-kind-icon">Buffered<wbr>Event<wbr>Emitter<wbr>Buffer</a>
 					</li>
-					<li class=" tsd-kind-interface tsd-is-not-exported">
+					<li class=" tsd-kind-interface">
 						<a href="interfaces/bufferedeventemitterbufferevents.html" class="tsd-kind-icon">Buffered<wbr>Event<wbr>Emitter<wbr>Buffer<wbr>Events</a>
 					</li>
-					<li class=" tsd-kind-interface tsd-is-not-exported">
+					<li class=" tsd-kind-interface">
 						<a href="interfaces/bufferedeventemitterbufferhash.html" class="tsd-kind-icon">Buffered<wbr>Event<wbr>Emitter<wbr>Buffer<wbr>Hash</a>
 					</li>
-					<li class=" tsd-kind-interface tsd-is-not-exported">
+					<li class=" tsd-kind-interface">
 						<a href="interfaces/bufferedeventemitteroptions.html" class="tsd-kind-icon">Buffered<wbr>Event<wbr>Emitter<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-variable tsd-is-not-exported">
