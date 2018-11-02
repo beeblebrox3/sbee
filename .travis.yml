@@ -7,8 +7,7 @@ node_js:
 deploy:
   provider: npm
   email: luish.faria@gmail.com
-  api_key:
-    secure: fIt6yvIho2Nfn9a7H3DdBNhjKnbjX55ofyfbmbsOt1PZcKnPg3WKa5tWXxI4pbXuhgEBeIsb35sGQogRbiIgAZ+pkj6wQokz5PZ8OYiOs6kInD6cta8NlgTHNj8q4XnjjVlas//4Uo3snfpmYy8HXTD5TaHMQ3PQ6NFnB+eW8DJTWmvqq8lq+oJTJWI4JoM7jJMQMb9+DDvGiamzgtq2qBFfN90blXp4su3xtMEsb5c5ObAJVQI41sKMfZmvhfrlgCwNKLmzD7jzUXuV5u8Mq8rflcOHsPjvox+Tjqn+pBQ0kp7ABSwzJzMYLvz9ASF4fgtOLJGPCzu2WxOepvM6weYUw+04N6kDAIUWaL0EBS5MW/I6QVrkJwZMxlzGsSTXhLyJI4Z5WxNqCTbwTcoxUX5uqH/eAMVk9HDN4fJ9jlYcXpYcY9UffO5FSrKWyJ20bsC0b2S/haPnY3RvC4ney0cImGUnBP46wJLZtdFkTr1bCH0Pd4H0OvFXaIN/I0EL/oCp4kfpsaU2V9IDc2YscSKsoQrtbQzQBQEEOA53gFZ3lE6QpNdIkCloUIX1GlNXANrsxIEbgbbTzcV7IewyRHYb2iZ+0aZFD1Imw5fZgYBVwWsTiLPynEqM9TP9w9yZqrw/fWupVWyk/OUlaq6XRqkUZ/3/iFg/yGfeBkTzgvw=
+  api_key: $NPM_TOKEN
   on:
     tags: true
     repo: beeblebrox3/sbee
