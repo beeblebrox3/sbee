@@ -1,6 +1,13 @@
 language: node_js
 node_js:
-  - '10'
-  - '9'
-  - '8'
-  - '6'
+- '10'
+- '9'
+- '8'
+- '6'
+deploy:
+  provider: npm
+  email: luish.faria@gmail.com
+  api_key: $NPM_TOKEN
+  on:
+    tags: true
+    repo: beeblebrox3/sbee
