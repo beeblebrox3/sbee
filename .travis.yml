@@ -1,8 +1,18 @@
 language: node_js
+
 node_js:
 - '11'
 - '10'
 - '8'
+
+install:
+  - npm install
+
+script:
+  - npm run test
+  - sonar-scanner
+
+
 deploy:
   provider: npm
   email: luish.faria@gmail.com
@@ -16,5 +26,3 @@ addons:
     organization: "beeblebrox3-github"
     token:
       secure: $SONAR_TOKEN
-script:
-  - sonar-scanner
