@@ -41,7 +41,7 @@ instance.flush("my buffer"); // wil lcal the handler 2 times, cause we emitted 2
 // You can delete all the events too
 instance.cleanBuffer("my buffer");
 ```
-
+Docs: https://beeblebrox3.github.io/sbee/
 
 
 ## License
