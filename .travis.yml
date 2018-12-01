@@ -11,3 +11,11 @@ deploy:
   on:
     tags: true
     repo: beeblebrox3/sbee
+
+addons:
+  sonarcloud:
+    organization: "beeblebrox3-github"
+    token:
+      secure: $SONAR_TOKEN
+script:
+  - sonar-scanner
