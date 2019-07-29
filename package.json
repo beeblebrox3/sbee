@@ -41,10 +41,10 @@
     "build": "npm run compile && npm run docs"
   },
   "devDependencies": {
-    "@types/jest": "^23.3.9",
-    "jest": "^23.6.0",
-    "ts-jest": "^23.10.4",
-    "typedoc": "^0.13.0",
-    "typescript": "^3.1.0"
+    "@types/jest": "^24.0.15",
+    "jest": "^24.8.0",
+    "ts-jest": "^24.0.2",
+    "typedoc": "^0.15.0",
+    "typescript": "^3.5.3"
   }
 }
