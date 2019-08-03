@@ -146,3 +146,31 @@ test('subscribe/unsubscribe multiple', () => {
     expect(handler.mock.calls.length).toBe(2);
     expect(handler2.mock.calls.length).toBe(1);
 });
+
+test('should not create buffer with existing id', () => {
+    const instance = new BufferedEventEmitter({});
+    const bufferId = 'buffer-xpto';
+
+    instance.createBuffer(bufferId);
+
+    expect(() => instance.createBuffer(bufferId)).toThrow("BUFFER ALREADY EXISTS");
+});
+
+test('event name must be a non empty string on subscribe', () => {
+    const instance = new BufferedEventEmitter();
+    const handler = jest.fn();
+
+    expect(() => instance.subscribe('', handler)).toThrow("eventName cannot be empty");
+});
+
+test('enable debug logging', () => {
+    const spy = jest.spyOn(console, 'log');
+
+    const instance = new BufferedEventEmitter();
+    instance.createBuffer('buffer1');
+    expect(spy).not.toHaveBeenCalled();
+
+    instance.debugEnable(true);
+    instance.createBuffer('buffer2');
+    expect(spy).toHaveBeenCalled();
+});
