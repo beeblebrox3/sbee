@@ -1,17 +1,13 @@
 module.exports = {
-    out: './docs',
-    includeDeclarations: true,
+  entryPoints: ['./src/BufferedEventEmitter.ts'],
+  out: './docs',
 
-    name: "sbee - Simple Buffered Event Emitter",
-    // readme: './readme.md',
-    includes: './src',
-    exclude: [
-        '**/*.test.ts',
-    ],
+  name: 'sbee - Simple Buffered Event Emitter',
+  includes: './src',
+  exclude: [
+    '**/*.test.ts'
+  ],
 
-    mode: "file",
-
-
-    excludePrivate: true,
-    excludeExternals: true
-};
+  excludePrivate: true,
+  excludeExternals: true
+}

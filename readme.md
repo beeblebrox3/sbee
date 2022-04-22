@@ -1,6 +1,5 @@
 # sbee - Simple Buffered Event Emitter
 
-[![Build Status](https://travis-ci.org/beeblebrox3/sbee.svg?branch=master)](https://travis-ci.org/beeblebrox3/sbee)
 [![Sonar Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=beeblebrox3_sbee&metric=alert_status)](https://sonarcloud.io/dashboard?id=beeblebrox3_sbee)
 [![Code Coverage](https://scrutinizer-ci.com/g/beeblebrox3/sbee/badges/coverage.png?b=master)](https://scrutinizer-ci.com/g/beeblebrox3/sbee/?branch=master)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fbeeblebrox3%2Fsbee.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fbeeblebrox3%2Fsbee?ref=badge_shield)
