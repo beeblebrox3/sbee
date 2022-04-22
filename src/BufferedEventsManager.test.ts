@@ -185,7 +185,7 @@ test('enable debug logging', () => {
   instance.createBuffer('buffer1')
   expect(spy).not.toHaveBeenCalled()
 
-  instance.debugEnable(true)
+  instance.setDebugMode(true)
   instance.createBuffer('buffer2')
   expect(spy).toHaveBeenCalled()
 })

@@ -33,7 +33,7 @@ export class BufferedEventEmitter {
   /**
    * Enable/disable debug mode (console.log everywhere ;))
    */
-  public debugEnable (value: boolean): this {
+  public setDebugMode (value: boolean): this {
     this.debug = value
     return this
   }
