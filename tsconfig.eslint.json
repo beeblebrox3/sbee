@@ -1,0 +1,26 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "target": "es6",
+        "noResolve": false,
+        "rootDir": "./src",
+        "outDir": "./lib",
+        "declaration": true,
+        "declarationMap": false,
+        "diagnostics": true,
+        "newLine": "LF",
+        "esModuleInterop": true,
+        "moduleResolution": "node",
+        "strictNullChecks": true
+    },
+    "exclude": [
+        "node_modules",
+        "**/node_modules/*",
+        "lib",
+        "dist"
+    ],
+    "compileOnSave": true,
+    "typeAcquisition": {
+        "enable": true
+    }
+}
