@@ -15,9 +15,13 @@ function isObject (object: any): boolean {
   return typeof object === 'object'
 }
 
+interface SubscriptionsMap {
+  [eventName: string]: Function[]
+}
+
 export class BufferedEventEmitter {
   private debug = false
-  private map = {}
+  private map: SubscriptionsMap = {}
   private bufferedMessages: BufferedEventEmitterBufferHash = {}
   private ttl: number
   private maintenanceChance: number
@@ -133,7 +137,7 @@ export class BufferedEventEmitter {
    * @returns {Function} the "unsubscriber". Call this function to unsubscribe this event (or use the unsubscribe method)
    */
   public subscribe (eventName: string, fn: Function): Function {
-    if (typeof eventName !== 'string') throw new Error('eventName must be string')
+    if (typeof eventName !== 'string') throw new Error('eventName must be string') // NOSONAR
     if (eventName.length === 0) throw new Error('eventName cannot be empty')
 
     if (!(eventName in this.map)) this.map[eventName] = []
@@ -304,7 +308,7 @@ export interface BufferedEventEmitterOptions {
  */
 export interface BufferedEventEmitterBuffer {
   /** Unique id of the buffer */
-  id: number | String
+  id: number | string
 
   /**
    * Extra information about the buffer.
