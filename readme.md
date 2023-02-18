@@ -9,7 +9,7 @@ Like a relational database transaction, but for events. Like this:
 
 
 ```javascript
-const sbee = require("sbee");
+const { BufferedEventEmitter } = require("sbee");
 
 // Create an instance of the event emiter
 const instance = new sbee.BufferedEventEmitter();
@@ -27,12 +27,12 @@ instance.emit("the-event", 1); // will call the handler and log 1 on the console
 // Create your buffer
 // Context is some information that you may need to know on your handlers.
 // The name of the buffer must be unique. You can use a uniqid, for example, but you need to keep track of it
-instance.createBuffer("my buffer", {my: "context"});
+instance.createBuffer("my buffer", { my: "context" });
 
 // Now you emit the event inside the buffer
-instance.emitBuffered("my buffer", "the-event", {the: "data"});
+instance.emitBuffered("my buffer", "the-event", { the: "data" });
 // Another one, maybe
-instance.emitBuffered("my buffer", "the-event", {the: "data2"});
+instance.emitBuffered("my buffer", "the-event", { the: "data2" });
 
 // You need to flush to "really" emit all those events from the buffer
 instance.flush("my buffer"); // wil lcal the handler 2 times, cause we emitted 2 events
@@ -40,6 +40,7 @@ instance.flush("my buffer"); // wil lcal the handler 2 times, cause we emitted 2
 // You can delete all the events too
 instance.cleanBuffer("my buffer");
 ```
+
 Docs: https://beeblebrox3.github.io/sbee/
 
 
