@@ -1,7 +1,7 @@
 # sbee - Simple Buffered Event Emitter
 
 [![Sonar Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=beeblebrox3_sbee&metric=alert_status)](https://sonarcloud.io/dashboard?id=beeblebrox3_sbee)
-[![Code Coverage](https://scrutinizer-ci.com/g/beeblebrox3/sbee/badges/coverage.png?b=master)](https://scrutinizer-ci.com/g/beeblebrox3/sbee/?branch=master)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=beeblebrox3_sbee&metric=coverage)](https://sonarcloud.io/summary/new_code?id=beeblebrox3_sbee)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fbeeblebrox3%2Fsbee.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fbeeblebrox3%2Fsbee?ref=badge_shield)
 
 This project is a simple implementation of a event emitter, but with one particularity: you can create buffers to only emit the events when some condition occurs.
