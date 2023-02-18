@@ -9,7 +9,7 @@
   "homepage": "https://github.com/beeblebrox3/sbee",
   "license": "MIT",
   "engines": {
-    "node": ">=6"
+    "node": ">=16"
   },
   "author": {
     "email": "luish.faria@gmail.com",
@@ -40,7 +40,8 @@
     "test-watch": "jest --watchAll",
     "build": "npm run compile && npm run docs",
     "lint": "ts-standard",
-    "lint:fix": "ts-standard --fix"
+    "lint:fix": "ts-standard --fix",
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
     "@types/jest": "^29.4.0",
