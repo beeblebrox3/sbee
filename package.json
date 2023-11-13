@@ -41,7 +41,8 @@
     "build": "npm run compile && npm run docs",
     "lint": "ts-standard",
     "lint:fix": "ts-standard --fix",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "preversion": "npm run docs"
   },
   "devDependencies": {
     "@vitest/coverage-istanbul": "^0.34.6",
