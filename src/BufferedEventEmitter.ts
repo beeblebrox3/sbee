@@ -258,7 +258,7 @@ export class BufferedEventEmitter {
       const diff = now.getTime() - buffer.lastActivity.getTime()
       const seconds = Math.abs(diff / 1000)
 
-      if (seconds > BUFFER_RETENTION_PERIOD_SECONDS) {
+      if (seconds > this.ttl) {
         this.cleanBuffer(id)
       }
     })
