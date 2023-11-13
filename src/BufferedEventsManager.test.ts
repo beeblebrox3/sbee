@@ -1,10 +1,17 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+
+import { vi, test, expect } from 'vitest'
 import { BufferedEventEmitter } from './BufferedEventEmitter'
+
+async function sleep (ms: number) {
+  return await new Promise(resolve => setTimeout(resolve, ms))
+}
 
 test('flush event', () => {
   const instance = new BufferedEventEmitter({})
   const id = 'buffer1'
 
-  const handler = jest.fn()
+  const handler = vi.fn()
   instance.subscribe('BUFFER:flush', handler)
 
   instance.createBuffer(id, { name: 'Buffer 1' })
@@ -22,7 +29,7 @@ test('clean event', () => {
   const instance = new BufferedEventEmitter({})
   const id = 'buffer1'
 
-  const handler = jest.fn()
+  const handler = vi.fn()
   instance.subscribe('BUFFER:clean', handler)
 
   instance.createBuffer(id, { name: 'Buffer 1' })
@@ -41,8 +48,8 @@ test('shoud call all messages events on flush', () => {
   const id = 'buffer1'
   const context = { name: 'Buffer 1' }
 
-  const handlerEvents = jest.fn()
-  const handlerFlush = jest.fn()
+  const handlerEvents = vi.fn()
+  const handlerFlush = vi.fn()
 
   instance.subscribe(BufferedEventEmitter.FLUSH_BUFFER_EVENT_NAME, handlerFlush)
 
@@ -75,27 +82,42 @@ test('shoud call all messages events on flush', () => {
   })
 })
 
-test('maintenance should clean old buffers', done => {
+test('maintenance should clean old buffers', async () => {
   const instance = new BufferedEventEmitter({ ttl: 1 })
   const id = 'buffer1'
-  const handler = jest.fn()
+  const handler = vi.fn()
 
   instance.subscribe('foo', handler)
   instance.createBuffer(id, { name: 'Buffer 1' })
   instance.emitBuffered(id, 'foo', 1)
 
-  setTimeout(() => {
-    // eslint-disable-next-line @typescript-eslint/dot-notation
-    instance['maintenance']()
-    expect(() => instance.flush(id)).toThrow('BUFFER NOT FOUND')
-    expect(handler.mock.calls.length).toBe(0)
-    done()
-  }, 2000)
+  await sleep(2000)
+
+  // eslint-disable-next-line @typescript-eslint/dot-notation
+  instance['maintenance']()
+  expect(() => instance.flush(id)).toThrow('BUFFER NOT FOUND')
+  expect(handler.mock.calls.length).toBe(0)
+})
+
+test('maintenance should clean only buffers older than TTL', async () => {
+  const instance = new BufferedEventEmitter({ ttl: 3 })
+  const id = 'buffer1'
+  instance.createBuffer(id)
+
+  await sleep(1500)
+  // eslint-disable-next-line @typescript-eslint/dot-notation
+  instance['maintenance']()
+  expect(instance.bufferExists(id)).toBe(true)
+
+  await sleep(3000)
+  // eslint-disable-next-line @typescript-eslint/dot-notation
+  instance['maintenance']()
+  expect(instance.bufferExists(id)).toBe(false)
 })
 
 test('shoud work with multiple buffers', () => {
   const instance = new BufferedEventEmitter({})
-  const handler = jest.fn()
+  const handler = vi.fn()
 
   instance.subscribe('BUFFER:flush', handler)
   instance.createBuffer(1, 'buffer 1')
@@ -129,7 +151,7 @@ test('should validate inexistent buffer calls', () => {
 test('subscribe/unsubscribe', () => {
   const instance = new BufferedEventEmitter({})
 
-  const handler = jest.fn()
+  const handler = vi.fn()
 
   const dispose = instance.subscribe('foo', handler)
   instance.emit('foo', 'bar')
@@ -142,8 +164,8 @@ test('subscribe/unsubscribe', () => {
 test('subscribe/unsubscribe multiple', () => {
   const instance = new BufferedEventEmitter({})
 
-  const handler = jest.fn()
-  const handler2 = jest.fn()
+  const handler = vi.fn()
+  const handler2 = vi.fn()
 
   const dispose = instance.subscribeMultiple(['foo', 'bar'], handler)
   instance.emit('foo', 'bar')
@@ -173,13 +195,13 @@ test('should not create buffer with existing id', () => {
 
 test('event name must be a non empty string on subscribe', () => {
   const instance = new BufferedEventEmitter()
-  const handler = jest.fn()
+  const handler = vi.fn()
 
   expect(() => instance.subscribe('', handler)).toThrow('eventName cannot be empty')
 })
 
 test('enable debug logging', () => {
-  const spy = jest.spyOn(console, 'log')
+  const spy = vi.spyOn(console, 'log')
 
   const instance = new BufferedEventEmitter()
   instance.createBuffer('buffer1')

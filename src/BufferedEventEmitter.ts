@@ -216,8 +216,16 @@ export class BufferedEventEmitter {
     return this
   }
 
+  /**
+   * Checks if the buffer exists
+   * @param id
+   */
+  public bufferExists (id: number | string): boolean {
+    return id in this.bufferedMessages
+  }
+
   private validateBufferExists (id: number | string): this {
-    if (!(id in this.bufferedMessages)) throw new Error(ERR_BUFFER_NOT_FOUND)
+    if (!this.bufferExists(id)) throw new Error(ERR_BUFFER_NOT_FOUND)
     return this
   }
 
