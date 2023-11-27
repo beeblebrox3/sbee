@@ -211,3 +211,15 @@ test('enable debug logging', () => {
   instance.createBuffer('buffer2')
   expect(spy).toHaveBeenCalled()
 })
+
+test('getBuffer should return a copy of the buffer and prevent changes on the original buffer', () => {
+  const instance = new BufferedEventEmitter();
+  const context = { name: 'Buffer 1' };
+  instance.createBuffer('buffer1', context);
+
+  const buffer = instance.getBuffer('buffer1');
+  expect(buffer.context).toEqual(context);
+
+  buffer.context.newProp = 'newValue';
+  expect(instance.getBuffer('buffer1').context).toEqual(context);
+})
