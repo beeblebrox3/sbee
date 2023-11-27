@@ -1,8 +1,8 @@
-const ERR_BUFFER_NOT_FOUND = 'BUFFER NOT FOUND'
-const ERR_BUFFER_ALREADY_EXISTS = 'BUFFER ALREADY EXISTS'
+export const ERR_BUFFER_NOT_FOUND = 'BUFFER NOT FOUND'
+export const ERR_BUFFER_ALREADY_EXISTS = 'BUFFER ALREADY EXISTS'
 
-const FLUSH_BUFFER_EVENT_NAME = 'BUFFER:flush'
-const CLEAN_BUFFER_EVENT_NAME = 'BUFFER:clean'
+export const FLUSH_BUFFER_EVENT_NAME = 'BUFFER:flush'
+export const CLEAN_BUFFER_EVENT_NAME = 'BUFFER:clean'
 
 const BUFFER_RETENTION_PERIOD_SECONDS = 1
 const MAINTENANCE_CHANCE = 100
@@ -70,7 +70,7 @@ export class BufferedEventEmitter {
   public emitBuffered (bufferId: number | string, eventName: string, message: any): this {
     this.log(`Emitting buffered event ${eventName} on buffer ${bufferId}`)
 
-    const buffer = this.getBuffer(bufferId, false)
+    const buffer = this.internalGetBuffer(bufferId, false)
     if (!(eventName in buffer.events)) {
       this.log(`Creating event ${eventName} on buffer ${bufferId}`)
       buffer.events[eventName] = []
@@ -91,7 +91,7 @@ export class BufferedEventEmitter {
   public flush (bufferId: string | number): this {
     this.log(`Trying to flush buffer ${bufferId}`)
 
-    const buffer = this.getBuffer(bufferId, true)
+    const buffer = this.internalGetBuffer(bufferId, true)
     const context = isObject(buffer.context) ? copy(buffer.context) : buffer.context
 
     if (FLUSH_BUFFER_EVENT_NAME in this.map) {
@@ -120,7 +120,7 @@ export class BufferedEventEmitter {
    */
   public cleanBuffer (bufferId: number | string): this {
     this.log(`Cleaning buffer ${bufferId}`)
-    const buffer = this.getBuffer(bufferId, true)
+    const buffer = this.internalGetBuffer(bufferId, true)
 
     if (BufferedEventEmitter.CLEAN_BUFFER_EVENT_NAME in this.map) {
       this.log('Calling clean buffer event handler')
@@ -224,15 +224,26 @@ export class BufferedEventEmitter {
     return id in this.bufferedMessages
   }
 
+  public getBuffer (id: number | string): BufferedEventEmitterBuffer {
+    return this.internalGetBuffer(id, true);
+  }
+
   private validateBufferExists (id: number | string): this {
     if (!this.bufferExists(id)) throw new Error(ERR_BUFFER_NOT_FOUND)
     return this
   }
 
   /**
-   * Get the buffer object
+   * This method returns a buffer. the difference between this method and the getBuffer is that this one performs a copy
+   * of the buffer before returning it if shouldCopy is true. Otherwise it returns the original buffer.
+   * For performance reasons, the original buffer is returned by default and only should be used internally. For external
+   * usage, use the getBuffer method.
+   *
+   * @param bufferId
+   * @param shouldCopy
+   * @private
    */
-  private getBuffer (bufferId: number | string, shouldCopy: boolean = false): BufferedEventEmitterBuffer {
+  private internalGetBuffer (bufferId: number | string, shouldCopy: boolean = false): BufferedEventEmitterBuffer {
     this.validateBufferExists(bufferId)
     const buffer = this.bufferedMessages[bufferId]
 
@@ -261,7 +272,7 @@ export class BufferedEventEmitter {
 
     const now = new Date()
     Object.keys(this.bufferedMessages).forEach(id => {
-      const buffer = this.getBuffer(id)
+      const buffer = this.internalGetBuffer(id)
 
       const diff = now.getTime() - buffer.lastActivity.getTime()
       const seconds = Math.abs(diff / 1000)
