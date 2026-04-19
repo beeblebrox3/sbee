@@ -84,7 +84,7 @@ export class BufferedEventEmitter {
       buffer.events[eventName] = [];
     }
 
-    buffer.events[eventName].push(args);
+    buffer.events[eventName].push(structuredClone(args));
     buffer.lastActivity = new Date();
 
     this.log(`Buffer ${bufferId} updated`);
@@ -150,7 +150,7 @@ export class BufferedEventEmitter {
    */
   public subscribe(eventName: string, fn: EventHandler): CallableFunction {
     if (typeof eventName !== "string") {
-      throw new Error("eventName must be a string");
+      throw new TypeError("eventName must be a string");
     }
 
     if (eventName.length === 0) throw new Error("eventName cannot be empty");
@@ -230,8 +230,9 @@ export class BufferedEventEmitter {
     if (!(eventName in this.map)) return this;
 
     // clone arguments to prevent handlers from mutating them
+    const eventContent = Object.freeze(structuredClone(args));
     this.map[eventName].forEach(fn => {
-      fn.apply(null, structuredClone(args));
+      fn(...eventContent);
     });
     return this;
   }
