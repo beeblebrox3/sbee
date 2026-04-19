@@ -1,367 +1,327 @@
-export const ERR_BUFFER_NOT_FOUND = 'BUFFER NOT FOUND'
-export const ERR_BUFFER_ALREADY_EXISTS = 'BUFFER ALREADY EXISTS'
+import { randomUUID } from "node:crypto";
+import type {
+  BufferedEventEmitterBuffer,
+  BufferedEventEmitterBufferHash,
+  BufferedEventEmitterOptions,
+  CreatedBuffer,
+  EventHandler,
+} from "./types.ts";
 
-export const FLUSH_BUFFER_EVENT_NAME = 'BUFFER:flush'
-export const CLEAN_BUFFER_EVENT_NAME = 'BUFFER:clean'
+export const ERR_BUFFER_NOT_FOUND = "BUFFER NOT FOUND";
+export const ERR_BUFFER_ALREADY_EXISTS = "BUFFER ALREADY EXISTS";
 
-const BUFFER_RETENTION_PERIOD_SECONDS = 1
-const MAINTENANCE_CHANCE = 100
+export const FLUSH_BUFFER_EVENT_NAME = "BUFFER:flush";
+export const CLEAN_BUFFER_EVENT_NAME = "BUFFER:clean";
 
-function copy<T extends Object> (object: T): T {
-  return JSON.parse(JSON.stringify(object))
-}
-
-function isObject (object: any): boolean {
-  return typeof object === 'object'
-}
-
-interface SubscriptionsMap {
-  [eventName: string]: Function[]
-}
+const BUFFER_RETENTION_PERIOD_SECONDS = 1;
+const MAINTENANCE_CHANCE = 100;
 
 export class BufferedEventEmitter {
-  private debug = false
-  private map: SubscriptionsMap = {}
-  private bufferedMessages: BufferedEventEmitterBufferHash = {}
-  private ttl: number
-  private maintenanceChance: number
+  private debug = false;
+  private map: Record<string, EventHandler[]> = {};
+  private bufferedMessages: BufferedEventEmitterBufferHash = {};
+  private ttl!: number;
+  private maintenanceChance!: number;
 
-  public static FLUSH_BUFFER_EVENT_NAME = FLUSH_BUFFER_EVENT_NAME
-  public static CLEAN_BUFFER_EVENT_NAME = CLEAN_BUFFER_EVENT_NAME
-
-  constructor (options: BufferedEventEmitterOptions = {}) {
-    this.setTTL(options?.ttl ?? BUFFER_RETENTION_PERIOD_SECONDS)
-      .setMaintenanceChance(options?.maintenanceChance ?? MAINTENANCE_CHANCE)
+  constructor(options: BufferedEventEmitterOptions = {}) {
+    this.setTTL(options.ttl ?? BUFFER_RETENTION_PERIOD_SECONDS);
+    this.setMaintenanceChance(options.maintenanceChance ?? MAINTENANCE_CHANCE);
   }
 
   /**
-   * Enable/disable debug mode (console.log everywhere ;))
+   * Enable/disable debug mode (console.log everywhere ;)
    */
-  public setDebugMode (value: boolean): this {
-    this.debug = value
-    return this
+  public setDebugMode(value: boolean): this {
+    this.debug = value;
+    return this;
   }
 
   /**
-   * Creates a named buffer
+   * Creates a named buffer and returns an object with methods to interact with it.
    */
-  public createBuffer (bufferId: number | string, context: any = {}): this {
-    this.log(`Trying to create buffer ${bufferId}`)
-    this.checkMaintenance()
+  public createBuffer(
+    bufferId: number | string = randomUUID(),
+    context: unknown = {}
+  ): CreatedBuffer {
+    this.log(`Trying to create buffer ${bufferId}`);
+    this.checkMaintenance();
 
-    if (bufferId in this.bufferedMessages) throw new Error(ERR_BUFFER_ALREADY_EXISTS)
+    if (bufferId in this.bufferedMessages)
+      throw new Error(ERR_BUFFER_ALREADY_EXISTS);
 
-    const now = new Date()
+    const now = new Date();
     this.bufferedMessages[bufferId] = {
       id: bufferId,
-      context: isObject(context) ? copy(context) : context,
+      context: structuredClone(context),
       created: now,
       lastActivity: now,
-      events: {}
-    }
-    this.log(`Buffer ${bufferId} created`)
-    return this
+      events: {},
+    };
+    this.log(`Buffer ${bufferId} created`);
+
+    return {
+      bufferId,
+      emit: this.emitBuffered.bind(this, bufferId),
+      flush: this.flush.bind(this, bufferId),
+      clean: this.cleanBuffer.bind(this, bufferId),
+    };
   }
 
   /**
-   * Add and event to the buffer.
-   * Will store the event until the buffer is flushed
+   * Add an event to the buffer.
+   * The event is stored until the buffer is flushed.
    */
-  public emitBuffered (bufferId: number | string, eventName: string, message: any): this {
-    this.log(`Emitting buffered event ${eventName} on buffer ${bufferId}`)
+  public emitBuffered(
+    bufferId: number | string,
+    eventName: string,
+    ...args: [message?: unknown, ...extra: unknown[]]
+  ): this {
+    this.log(`Emitting buffered event ${eventName} on buffer ${bufferId}`);
 
-    const buffer = this.internalGetBuffer(bufferId, false)
+    const buffer = this.internalGetBuffer(bufferId, false);
     if (!(eventName in buffer.events)) {
-      this.log(`Creating event ${eventName} on buffer ${bufferId}`)
-      buffer.events[eventName] = []
+      this.log(`Creating event ${eventName} on buffer ${bufferId}`);
+      buffer.events[eventName] = [];
     }
 
-    const args = Array.prototype.slice.call(arguments, 2)
-    buffer.events[eventName].push(args)
-    buffer.lastActivity = new Date()
+    buffer.events[eventName].push(args);
+    buffer.lastActivity = new Date();
 
-    this.log(`Buffer ${bufferId} updated`)
-    return this
+    this.log(`Buffer ${bufferId} updated`);
+    return this;
   }
 
   /**
-   * Flushes the buffer, calling the registered handlers for all events
-   * Maintenance will try to remove it after a few moments.
+   * Flushes the buffer, calling the registered handlers for all events.
+   * The buffer is removed after flushing.
    */
-  public flush (bufferId: string | number): this {
-    this.log(`Trying to flush buffer ${bufferId}`)
+  public flush(bufferId: string | number): this {
+    this.log(`Trying to flush buffer ${bufferId}`);
 
-    const buffer = this.internalGetBuffer(bufferId, true)
-    const context = isObject(buffer.context) ? copy(buffer.context) : buffer.context
+    const buffer = this.internalGetBuffer(bufferId, true);
 
     if (FLUSH_BUFFER_EVENT_NAME in this.map) {
-      this.log('Calling handlers for flush event')
-      this.map[FLUSH_BUFFER_EVENT_NAME].forEach(fn => fn(buffer.id, buffer.context, buffer.events))
+      this.log("Calling handlers for flush event");
+      this.map[FLUSH_BUFFER_EVENT_NAME].forEach(fn => {
+        fn(
+          buffer.id,
+          structuredClone(buffer.context),
+          structuredClone(buffer.events)
+        );
+      });
     }
 
-    this.log('Calling handlers for buffered events')
-    Object.keys(buffer.events).forEach(eventName => {
-      if (eventName in this.map) {
-        buffer.events[eventName].forEach(event => {
-          event.push(isObject(context) ? copy(context) : context)
-
-          this.map[eventName].forEach(fn => fn.apply(this, event))
-        })
+    this.log("Calling handlers for buffered events");
+    for (const [eventName, events] of Object.entries(buffer.events)) {
+      for (const singleEvent of events) {
+        this.emit(eventName, ...singleEvent);
       }
-    })
-
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete this.bufferedMessages[bufferId]
-    return this
-  }
-
-  /**
-   * Remove all data from the buffer. Just the global clean buffer event will be emitted
-   */
-  public cleanBuffer (bufferId: number | string): this {
-    this.log(`Cleaning buffer ${bufferId}`)
-    const buffer = this.internalGetBuffer(bufferId, true)
-
-    if (BufferedEventEmitter.CLEAN_BUFFER_EVENT_NAME in this.map) {
-      this.log('Calling clean buffer event handler')
-      this.map[BufferedEventEmitter.CLEAN_BUFFER_EVENT_NAME].forEach(fn => fn(buffer.id, buffer.context, buffer.events))
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete this.bufferedMessages[bufferId]
-    return this
+    delete this.bufferedMessages[bufferId];
+    return this;
   }
 
   /**
-   * Add an event listener
-   * @returns {Function} the "unsubscriber". Call this function to unsubscribe this event (or use the unsubscribe method)
+   * Removes all data from the buffer. Only the global clean buffer event is emitted.
    */
-  public subscribe (eventName: string, fn: Function): Function {
-    if (typeof eventName !== 'string') throw new Error('eventName must be string') // NOSONAR
-    if (eventName.length === 0) throw new Error('eventName cannot be empty')
+  public cleanBuffer(bufferId: number | string): this {
+    this.log(`Cleaning buffer ${bufferId}`);
+    const buffer = this.internalGetBuffer(bufferId, true);
 
-    if (!(eventName in this.map)) this.map[eventName] = []
+    if (CLEAN_BUFFER_EVENT_NAME in this.map) {
+      this.log("Calling clean for flush event");
+      this.map[CLEAN_BUFFER_EVENT_NAME].forEach(fn => {
+        fn(
+          buffer.id,
+          structuredClone(buffer.context),
+          structuredClone(buffer.events)
+        );
+      });
+    }
 
-    this.map[eventName].push(fn)
-    return this.unsubscribe.bind(this, eventName, fn)
+    delete this.bufferedMessages[bufferId];
+    return this;
   }
 
   /**
-   * @see subscribe
-   * Add an event listener to multiple event aht the same time
+   * Adds an event listener.
+   * @returns the "unsubscriber". Call this function to unsubscribe the event (or use the unsubscribe method).
+   */
+  public subscribe(eventName: string, fn: EventHandler): CallableFunction {
+    if (typeof eventName !== "string") {
+      throw new Error("eventName must be a string");
+    }
+
+    if (eventName.length === 0) throw new Error("eventName cannot be empty");
+
+    if (!(eventName in this.map)) this.map[eventName] = [];
+
+    this.map[eventName].push(fn);
+    return this.unsubscribe.bind(this, eventName, fn);
+  }
+
+  /**
+   * Adds an event listener to multiple events at the same time.
    *
-   * @param {String[]} eventNames Event's names
-   * @param {Function} fn Handler
-   * @return {Function} Unsubscriber for all events
-   * @see EventManager.subscribe
+   * @param eventNames Event names
+   * @param fn Handler
+   * @returns Unsubscriber for all events
+   * @see BufferedEventEmitter.subscribe
    */
-  public subscribeMultiple (eventNames: string[], fn: Function): Function {
-    const unsubscribes = eventNames.map(eventName => this.subscribe(eventName, fn))
-    return () => unsubscribes.forEach(unsubscribe => unsubscribe())
+  public subscribeMultiple(eventNames: string[], fn: EventHandler): () => void {
+    const unsubscribes = eventNames.map(eventName =>
+      this.subscribe(eventName, fn)
+    );
+    return () =>
+      unsubscribes.forEach(unsubscribe => {
+        unsubscribe();
+      });
   }
 
   /**
-   * Removes an event listener from an event
+   * Removes an event listener from an event.
    *
-   * @param {string} eventName Event's name
-   * @param {Function} fn Handler to remove
+   * @param eventName Event name
+   * @param fn Handler to remove
    */
-  public unsubscribe (eventName: string, fn: Function): this {
+  public unsubscribe(eventName: string, fn: EventHandler): this {
     if (!(eventName in this.map)) {
-      return this
+      return this;
     }
 
-    const index = this.map[eventName].indexOf(fn)
-    if (index !== -1) this.map[eventName].splice(index, 1)
-    return this
+    const index = this.map[eventName].indexOf(fn);
+    if (index !== -1) this.map[eventName].splice(index, 1);
+    return this;
   }
 
   /**
+   * Removes the event listener from multiple events.
    * @see unsubscribe
-   * Removes the event listener from multiple events
    */
-  public unsubscribeMultiple (eventNames: string[], fn: Function): this {
-    let i
-    const length = eventNames.length
+  public unsubscribeMultiple(eventNames: string[], fn: EventHandler): this {
+    const length = eventNames.length;
 
-    for (i = 0; i < length; i++) {
-      this.unsubscribe(eventNames[i], fn)
+    for (let i = 0; i < length; i++) {
+      this.unsubscribe(eventNames[i], fn);
     }
-    return this
+    return this;
   }
 
   /**
-   * Removes all event listeners from the given events
+   * Removes all event listeners from the given events.
    */
-  public unsubscribeAll (eventNames: string[]): this {
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    eventNames.forEach(name => name in this.map && delete this.map[name])
-    return this
+  public unsubscribeAll(eventNames: string[]): this {
+    eventNames.forEach(name => {
+      name in this.map && delete this.map[name];
+    });
+    return this;
   }
 
   /**
-   * Trigger an event. Will send all arguments after eventName to the existent
-   * event listeners
+   * Triggers an event, forwarding all arguments after eventName to the registered
+   * event listeners.
    *
-   * @param {String} eventName Event's name
-   * @param {...*} args
-   * @memberOf EventManager
+   * @param eventName Event name
+   * @param args Arguments forwarded to listeners
    */
-  public emit (eventName: string, ...args): this {
-    this.log(`Emitting event ${eventName}`)
-    if (!(eventName in this.map)) return this
+  public emit(eventName: string, ...args: unknown[]): this {
+    this.log(`Emitting event ${eventName}`);
+    if (!(eventName in this.map)) return this;
 
-    // make an copy of the arguments to prevent someone to change it
-    this.map[eventName].forEach(fn => fn.apply(this, copy(args)))
-    return this
+    // clone arguments to prevent handlers from mutating them
+    this.map[eventName].forEach(fn => {
+      fn.apply(null, structuredClone(args));
+    });
+    return this;
   }
 
   /**
-   * Checks if the buffer exists
-   * @param id
+   * Checks if the buffer exists.
    */
-  public bufferExists (id: number | string): boolean {
-    return id in this.bufferedMessages
+  public bufferExists(id: number | string): boolean {
+    return id in this.bufferedMessages;
   }
 
-  public getBuffer (id: number | string): BufferedEventEmitterBuffer {
+  public getBuffer(id: number | string): BufferedEventEmitterBuffer {
     return this.internalGetBuffer(id, true);
   }
 
-  private validateBufferExists (id: number | string): this {
-    if (!this.bufferExists(id)) throw new Error(ERR_BUFFER_NOT_FOUND)
-    return this
+  private validateBufferExists(id: number | string): this {
+    if (!this.bufferExists(id)) throw new Error(ERR_BUFFER_NOT_FOUND);
+    return this;
   }
 
   /**
-   * This method returns a buffer. the difference between this method and the getBuffer is that this one performs a copy
-   * of the buffer before returning it if shouldCopy is true. Otherwise it returns the original buffer.
-   * For performance reasons, the original buffer is returned by default and only should be used internally. For external
-   * usage, use the getBuffer method.
-   *
-   * @param bufferId
-   * @param shouldCopy
-   * @private
+   * Returns a buffer. Unlike getBuffer, this method returns the original buffer by default
+   * for performance reasons and should only be used internally. When shouldCopy is true,
+   * it returns a deep copy instead. For external usage, use getBuffer.
    */
-  private internalGetBuffer (bufferId: number | string, shouldCopy: boolean = false): BufferedEventEmitterBuffer {
-    this.validateBufferExists(bufferId)
-    const buffer = this.bufferedMessages[bufferId]
+  private internalGetBuffer(
+    bufferId: number | string,
+    shouldCopy: boolean = false
+  ): BufferedEventEmitterBuffer {
+    this.validateBufferExists(bufferId);
+    const buffer = this.bufferedMessages[bufferId];
 
-    return shouldCopy ? copy(buffer) : buffer
+    return shouldCopy ? structuredClone(buffer) : buffer;
   }
 
   /**
-   * Checks if maintenance should be done and do it
+   * Checks if maintenance should run and executes it.
    */
-  private checkMaintenance (): this {
-    this.log('Checking maintenance...')
+  private checkMaintenance(): this {
+    this.log("Checking maintenance...");
 
     if (Math.random() <= this.maintenanceChance / 100) {
       try {
-        this.maintenance()
+        this.maintenance();
       } catch (e) {
-        console.error('Failed to run maintenance.', e)
+        console.error("Failed to run maintenance.", e);
       }
     }
 
-    return this
+    return this;
   }
 
-  private maintenance (): this {
-    this.log('Running maintenance...')
+  private maintenance(): this {
+    this.log("Running maintenance...");
 
-    const now = new Date()
+    const now = new Date();
     Object.keys(this.bufferedMessages).forEach(id => {
-      const buffer = this.internalGetBuffer(id)
+      const buffer = this.internalGetBuffer(id);
 
-      const diff = now.getTime() - buffer.lastActivity.getTime()
-      const seconds = Math.abs(diff / 1000)
+      const diff = now.getTime() - buffer.lastActivity.getTime();
+      const seconds = Math.abs(diff / 1000);
 
       if (seconds > this.ttl) {
-        this.cleanBuffer(id)
+        this.cleanBuffer(id);
       }
-    })
-    return this
+    });
+    return this;
   }
 
-  private setTTL (ttl: any): this {
-    if (!Number.isSafeInteger(ttl)) throw new Error('Invalid TTL: must be an integer')
-    if (ttl < 1) throw new Error('Invalid TTL: must be greater than 0')
-    this.ttl = ttl
-    return this
+  private setTTL(ttl: number): this {
+    if (!Number.isSafeInteger(ttl))
+      throw new Error("Invalid TTL: must be an integer");
+
+    if (ttl < 1) throw new Error("Invalid TTL: must be greater than 0");
+    this.ttl = ttl;
+    return this;
   }
 
-  private setMaintenanceChance (change: any): this {
-    if (Number.isNaN(change)) throw new Error('Invalid maintenanceChance: must be numeric')
-    if (change <= 0 || change > 100) throw new Error('Invalid maintenanceChance: must be greater than 0 and lower than 100')
-    this.maintenanceChance = change
-    return this
+  private setMaintenanceChance(chance: number): this {
+    if (Number.isNaN(chance))
+      throw new Error("Invalid maintenanceChance: must be numeric");
+    if (chance <= 0 || chance > 100)
+      throw new Error(
+        "Invalid maintenanceChance: must be greater than 0 and lower than 100"
+      );
+    this.maintenanceChance = chance;
+    return this;
   }
 
-  private log (arg: any): void {
-    this.debug && console.log(arg)
+  private log(arg: unknown): void {
+    this.debug && console.log(arg);
   }
-}
-
-/** Options to configure the EventEmitter */
-export interface BufferedEventEmitterOptions {
-  /**
-   * TimeToLive: Time in seconds that the buffer can exists without activity.
-   * After this period it isn't valid anymore and can eventually be removed.
-   *
-   * Example: 10
-   */
-  ttl?: number
-
-  /**
-   * Every call to some methods will have a chance to run the maintenance, witch
-   * is the process of remove expired buffers not flushed. This number define
-   * the chance of this process happen on a method call (percent);
-   * Example: 10 => 10% chance of running maintenance
-   */
-  maintenanceChance?: number
-}
-
-/**
- * The buffer
- */
-export interface BufferedEventEmitterBuffer {
-  /** Unique id of the buffer */
-  id: number | string
-
-  /**
-   * Extra information about the buffer.
-   * You can put anything you want in here.
-   */
-  context: any
-
-  /**
-   * Creation date of the buffer
-   */
-  created: Date
-
-  /**
-   * Date of the last change of the buffer - usually the creation date of the last
-   * event.
-   */
-  lastActivity: Date
-
-  /**
-   * Store emitted events.
-   */
-  events: BufferedEventEmitterBufferEvents
-}
-
-/**
- *
- */
-export interface BufferedEventEmitterBufferHash {
-  [propName: string | number]: BufferedEventEmitterBuffer
-}
-
-/**
- *
- */
-export interface BufferedEventEmitterBufferEvents {
-  [propName: string]: any[]
 }

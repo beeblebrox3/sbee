@@ -9,10 +9,10 @@ Like a relational database transaction, but for events. Like this:
 
 
 ```javascript
-const { BufferedEventEmitter } = require("sbee");
+import { BufferedEventEmitter } from 'sbee';
 
 // Create an instance of the event emiter
-const instance = new sbee.BufferedEventEmitter();
+const instance = new BufferedEventEmitter();
 
 // Now you can register handlers to your events:
 // Every event of the type "the-event" will call this function.
@@ -26,16 +26,19 @@ instance.emit("the-event", 1); // will call the handler and log 1 on the console
 // Or you can do it inside a buffer
 // Create your buffer
 // Context is some information that you may need to know on your handlers.
-// The name of the buffer must be unique. You can use a uniqid, for example, but you need to keep track of it
-instance.createBuffer("my buffer", { my: "context" });
+// The id of the buffer must be unique. `node:crypto.randomUUID` will be used as default.
+const buffer = instance.createBuffer("my buffer", { my: "context" });
 
 // Now you emit the event inside the buffer
-instance.emitBuffered("my buffer", "the-event", { the: "data" });
-// Another one, maybe
+buffer.emitBuffered("my buffer", "the-event", { the: "data" });
+
+// you can also emit events using the instance instead of the buffer object,
+// you only need to known the id
 instance.emitBuffered("my buffer", "the-event", { the: "data2" });
 
 // You need to flush to "really" emit all those events from the buffer
-instance.flush("my buffer"); // wil lcal the handler 2 times, cause we emitted 2 events
+buffer.flush(); // wil lcal the handler 2 times, because we emitted 2 events
+// also works: instance.flush('my buffer')
 
 // You can delete all the events too
 instance.cleanBuffer("my buffer");

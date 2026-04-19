@@ -1,225 +1,472 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
+import { describe, expect, it, vi } from "vitest";
+import {
+  BufferedEventEmitter,
+  CLEAN_BUFFER_EVENT_NAME,
+  ERR_BUFFER_ALREADY_EXISTS,
+  ERR_BUFFER_NOT_FOUND,
+  FLUSH_BUFFER_EVENT_NAME,
+} from "./BufferedEventEmitter.js";
 
-import { vi, test, expect } from 'vitest'
-import { BufferedEventEmitter } from './BufferedEventEmitter'
+const EVENT_NAME = "my-event";
+const BUFFER_ID = "buffer-id";
 
-async function sleep (ms: number) {
-  return await new Promise(resolve => setTimeout(resolve, ms))
+async function sleep(ms: number) {
+  return await new Promise(resolve => setTimeout(resolve, ms));
 }
 
-test('flush event', () => {
-  const instance = new BufferedEventEmitter({})
-  const id = 'buffer1'
+describe("Regular event emitter", () => {
+  it("should call handler when event is emitted", () => {
+    const instance = new BufferedEventEmitter();
+    const handler = vi.fn();
 
-  const handler = vi.fn()
-  instance.subscribe('BUFFER:flush', handler)
+    instance.subscribe(EVENT_NAME, handler);
+    instance.emit(EVENT_NAME, "event-data");
 
-  instance.createBuffer(id, { name: 'Buffer 1' })
-  instance.emitBuffered(id, 'foo', { event: 'foo' })
-  instance.emitBuffered(id, 'foo', { event: 'bar' })
-  instance.flush(id)
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith("event-data");
+  });
 
-  expect(handler.mock.calls.length).toBe(1)
-  expect(handler.mock.calls[0][0]).toBe(id)
-  expect(handler.mock.calls[0][1]).toMatchObject({ name: 'Buffer 1' })
-  expect(handler.mock.calls[0][2]).toMatchObject({ foo: [[{ event: 'foo' }], [{ event: 'bar' }]] })
-})
+  it("should call multiple handlers when event is emitted", () => {
+    const instance = new BufferedEventEmitter();
+    const handler1 = vi.fn();
+    const handler2 = vi.fn();
 
-test('clean event', () => {
-  const instance = new BufferedEventEmitter({})
-  const id = 'buffer1'
+    instance.subscribe(EVENT_NAME, handler1);
+    instance.subscribe(EVENT_NAME, handler2);
+    instance.emit(EVENT_NAME, "event-data");
 
-  const handler = vi.fn()
-  instance.subscribe('BUFFER:clean', handler)
+    expect(handler1).toHaveBeenCalledTimes(1);
+    expect(handler1).toHaveBeenCalledWith("event-data");
+    expect(handler2).toHaveBeenCalledTimes(1);
+    expect(handler2).toHaveBeenCalledWith("event-data");
+  });
 
-  instance.createBuffer(id, { name: 'Buffer 1' })
-  instance.emitBuffered(id, 'foo', { event: 'foo' })
-  instance.emitBuffered(id, 'foo', { event: 'bar' })
-  instance.cleanBuffer(id)
+  it("should freeze event data passed to handler", () => {
+    const instance = new BufferedEventEmitter();
 
-  expect(handler.mock.calls.length).toBe(1)
-  expect(handler.mock.calls[0][0]).toBe(id)
-  expect(handler.mock.calls[0][1]).toMatchObject({ name: 'Buffer 1' })
-  expect(handler.mock.calls[0][2]).toMatchObject({ foo: [[{ event: 'foo' }], [{ event: 'bar' }]] })
-})
+    const original = { foo: "bar" };
 
-test('shoud call all messages events on flush', () => {
-  const instance = new BufferedEventEmitter({})
-  const id = 'buffer1'
-  const context = { name: 'Buffer 1' }
+    const handler = vi.fn((data: { foo: string }) => {
+      data.foo = "mutated";
+    });
 
-  const handlerEvents = vi.fn()
-  const handlerFlush = vi.fn()
+    instance.subscribe(EVENT_NAME, handler);
+    instance.emit(EVENT_NAME, original);
 
-  instance.subscribe(BufferedEventEmitter.FLUSH_BUFFER_EVENT_NAME, handlerFlush)
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(original).toStrictEqual({ foo: "bar" });
+  });
 
-  instance.subscribe('foo', handlerEvents)
-  instance.subscribe('bar', handlerEvents)
-  instance.subscribeMultiple(['zoo', 'poo'], handlerEvents)
+  it("should call handler with scalar values", () => {
+    const instance = new BufferedEventEmitter();
+    const handler = vi.fn();
 
-  instance.createBuffer(id, context)
-  instance.emitBuffered(id, 'foo', 1)
-  instance.emitBuffered(id, 'bar', 2)
-  instance.emitBuffered(id, 'zoo', 3)
-  instance.emitBuffered(id, 'poo', 4)
+    instance.subscribe(EVENT_NAME, handler);
+    instance.emit(EVENT_NAME, 42);
+    instance.emit(EVENT_NAME, "string-data");
+    instance.emit(EVENT_NAME, true);
 
-  instance.flush(id)
+    expect(handler).toHaveBeenCalledTimes(3);
+    expect(handler).toHaveBeenNthCalledWith(1, 42);
+    expect(handler).toHaveBeenNthCalledWith(2, "string-data");
+    expect(handler).toHaveBeenNthCalledWith(3, true);
+  });
 
-  expect(handlerEvents.mock.calls.length).toBe(4)
-  expect(handlerEvents.mock.calls[0][0]).toBe(1)
-  expect(handlerEvents.mock.calls[1][0]).toBe(2)
-  expect(handlerEvents.mock.calls[2][0]).toBe(3)
-  expect(handlerEvents.mock.calls[3][0]).toBe(4)
+  it("should call handler with objects", () => {
+    const instance = new BufferedEventEmitter();
+    const handler = vi.fn();
+    const data = { foo: "bar", baz: 1 };
 
-  expect(handlerFlush.mock.calls.length).toBe(1)
-  expect(handlerFlush.mock.calls[0][0]).toBe(id)
-  expect(handlerFlush.mock.calls[0][1]).toMatchObject(context)
-  expect(handlerFlush.mock.calls[0][2]).toMatchObject({
-    foo: [[1, context]],
-    bar: [[2, context]],
-    zoo: [[3, context]],
-    poo: [[4, context]]
-  })
-})
+    instance.subscribe(EVENT_NAME, handler);
+    instance.emit(EVENT_NAME, data);
 
-test('maintenance should clean old buffers', async () => {
-  const instance = new BufferedEventEmitter({ ttl: 1 })
-  const id = 'buffer1'
-  const handler = vi.fn()
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith(data);
+  });
 
-  instance.subscribe('foo', handler)
-  instance.createBuffer(id, { name: 'Buffer 1' })
-  instance.emitBuffered(id, 'foo', 1)
+  it("should call handler with multiple arguments", () => {
+    const instance = new BufferedEventEmitter();
+    const handler = vi.fn();
 
-  await sleep(2000)
+    instance.subscribe(EVENT_NAME, handler);
+    instance.emit(EVENT_NAME, "first", "second", "third");
 
-  // eslint-disable-next-line @typescript-eslint/dot-notation
-  instance['maintenance']()
-  expect(() => instance.flush(id)).toThrow('BUFFER NOT FOUND')
-  expect(handler.mock.calls.length).toBe(0)
-})
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith("first", "second", "third");
+  });
 
-test('maintenance should clean only buffers older than TTL', async () => {
-  const instance = new BufferedEventEmitter({ ttl: 3 })
-  const id = 'buffer1'
-  instance.createBuffer(id)
+  it("should call handler without any argument", () => {
+    const instance = new BufferedEventEmitter();
+    const handler = vi.fn();
 
-  await sleep(1500)
-  // eslint-disable-next-line @typescript-eslint/dot-notation
-  instance['maintenance']()
-  expect(instance.bufferExists(id)).toBe(true)
+    instance.subscribe(EVENT_NAME, handler);
+    instance.emit(EVENT_NAME);
 
-  await sleep(3000)
-  // eslint-disable-next-line @typescript-eslint/dot-notation
-  instance['maintenance']()
-  expect(instance.bufferExists(id)).toBe(false)
-})
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith();
+  });
 
-test('shoud work with multiple buffers', () => {
-  const instance = new BufferedEventEmitter({})
-  const handler = vi.fn()
+  it.each`
+    value       | reason
+    ${""}       | ${"empty string"}
+    ${null}     | ${"null"}
+    ${1}        | ${"number"}
+    ${[1]}      | ${"array"}
+    ${{ a: 1 }} | ${"object"}
+  `("should reject invalid event name: $reason", ({ value }) => {
+    const instance = new BufferedEventEmitter();
+    const handler = vi.fn();
 
-  instance.subscribe('BUFFER:flush', handler)
-  instance.createBuffer(1, 'buffer 1')
-  instance.createBuffer(2, 'buffer 2')
+    expect(() => instance.subscribe(value, handler)).toThrow();
+  });
 
-  instance.emitBuffered(1, 'foo', 11)
-  instance.emitBuffered(1, 'bar', 12)
-  instance.emitBuffered(2, 'foo', 21)
+  describe("unsubscribe", () => {
+    it("should unsubscribe all", () => {
+      const instance = new BufferedEventEmitter({});
 
-  instance.flush(1)
-  instance.flush(2)
+      const handlerFoo1 = vi.fn();
+      const handlerFoo2 = vi.fn();
+      const handlerBar = vi.fn();
+      const handlerBaz = vi.fn();
 
-  expect(handler.mock.calls.length).toBe(2)
-  expect(handler.mock.calls[0][0]).toBe(1)
-  expect(handler.mock.calls[0][1]).toBe('buffer 1')
-  expect(handler.mock.calls[0][2]).toMatchObject({ foo: [[11]], bar: [[12]] })
+      instance.subscribe("foo", handlerFoo1);
+      instance.subscribe("foo", handlerFoo2);
+      instance.subscribe("bar", handlerBar);
+      instance.subscribe("baz", handlerBaz);
 
-  expect(handler.mock.calls[1][0]).toBe(2)
-  expect(handler.mock.calls[1][1]).toBe('buffer 2')
-  expect(handler.mock.calls[1][2]).toMatchObject({ foo: [[21]] })
-})
+      instance.unsubscribeAll(["foo", "bar"]);
 
-test('should validate inexistent buffer calls', () => {
-  const instance = new BufferedEventEmitter({})
+      instance.emit("foo", "a");
+      instance.emit("bar", "b");
+      instance.emit("baz", "c");
 
-  expect(() => instance.emitBuffered(1, 'foo', 'bar')).toThrow('BUFFER NOT FOUND')
-  expect(() => instance.flush(1)).toThrow('BUFFER NOT FOUND')
-  expect(() => instance.cleanBuffer(1)).toThrow('BUFFER NOT FOUND')
-})
+      expect(handlerFoo1).not.toHaveBeenCalled();
+      expect(handlerFoo2).not.toHaveBeenCalled();
+      expect(handlerBar).not.toHaveBeenCalled();
+      expect(handlerBaz).toHaveBeenCalledWith("c");
 
-test('subscribe/unsubscribe', () => {
-  const instance = new BufferedEventEmitter({})
+      expect(() => instance.unsubscribeAll(["nonexistent"])).not.toThrow();
+    });
+  });
+});
 
-  const handler = vi.fn()
+describe("Buffered", () => {
+  it("should create buffer with custom id", () => {
+    const instance = new BufferedEventEmitter();
+    const buffer = instance.createBuffer(BUFFER_ID);
 
-  const dispose = instance.subscribe('foo', handler)
-  instance.emit('foo', 'bar')
-  dispose()
-  instance.emit('foo', 'bar2')
+    expect(buffer.bufferId).toBe(BUFFER_ID);
+  });
 
-  expect(handler.mock.calls.length).toBe(1)
-})
+  it("should generate buffer id if not provided", () => {
+    const instance = new BufferedEventEmitter();
+    const buffer = instance.createBuffer();
 
-test('subscribe/unsubscribe multiple', () => {
-  const instance = new BufferedEventEmitter({})
+    expect(buffer.bufferId).toBeDefined();
+  });
 
-  const handler = vi.fn()
-  const handler2 = vi.fn()
+  it("should emit only after flush using buffere emit method", async () => {
+    const instance = new BufferedEventEmitter();
+    const handler = vi.fn();
+    instance.subscribe(EVENT_NAME, handler);
 
-  const dispose = instance.subscribeMultiple(['foo', 'bar'], handler)
-  instance.emit('foo', 'bar')
-  instance.emit('bar', 'foo')
-  dispose()
-  instance.emit('foo', 'bar1')
-  instance.emit('bar', 'foo2')
+    const buffer = instance.createBuffer(BUFFER_ID);
+    buffer.emit(EVENT_NAME, "event-data");
+    expect(handler).not.toHaveBeenCalled();
 
-  instance.subscribeMultiple(['a', 'b'], handler2)
-  instance.emit('a', 'a')
-  instance.unsubscribeMultiple(['a', 'b'], handler2)
-  instance.emit('a', 'a')
-  instance.emit('b', 'b')
+    buffer.flush();
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith("event-data");
+  });
 
-  expect(handler.mock.calls.length).toBe(2)
-  expect(handler2.mock.calls.length).toBe(1)
-})
+  it("should emit only after flush using emitBuffered method", async () => {
+    const instance = new BufferedEventEmitter();
+    const handler = vi.fn();
+    instance.subscribe(EVENT_NAME, handler);
 
-test('should not create buffer with existing id', () => {
-  const instance = new BufferedEventEmitter({})
-  const bufferId = 'buffer-xpto'
+    const buffer = instance.createBuffer(BUFFER_ID);
+    instance.emitBuffered(BUFFER_ID, EVENT_NAME, "event-data");
+    expect(handler).not.toHaveBeenCalled();
 
-  instance.createBuffer(bufferId)
+    buffer.flush();
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith("event-data");
+  });
 
-  expect(() => instance.createBuffer(bufferId)).toThrow('BUFFER ALREADY EXISTS')
-})
+  it("should emit using created buffer response without requiring buffer id", () => {
+    const instance = new BufferedEventEmitter();
+    const handler = vi.fn();
+    instance.subscribe(EVENT_NAME, handler);
 
-test('event name must be a non empty string on subscribe', () => {
-  const instance = new BufferedEventEmitter()
-  const handler = vi.fn()
+    const buffer = instance.createBuffer(BUFFER_ID);
+    buffer.emit(EVENT_NAME, "event-data");
+    buffer.flush();
+    expect(handler).toHaveBeenCalledWith("event-data");
+  });
 
-  expect(() => instance.subscribe('', handler)).toThrow('eventName cannot be empty')
-})
+  it("should emit using emitBuffered with buffer id", () => {
+    const instance = new BufferedEventEmitter();
+    const handler = vi.fn();
+    instance.subscribe(EVENT_NAME, handler);
 
-test('enable debug logging', () => {
-  const spy = vi.spyOn(console, 'log')
+    const buffer = instance.createBuffer(BUFFER_ID);
+    instance.emitBuffered(BUFFER_ID, EVENT_NAME, "event-data");
+    buffer.flush();
+    expect(handler).toHaveBeenCalledWith("event-data");
+  });
 
-  const instance = new BufferedEventEmitter()
-  instance.createBuffer('buffer1')
-  expect(spy).not.toHaveBeenCalled()
+  it("should throw emitting buffered with invalid buffer id", () => {
+    const instance = new BufferedEventEmitter();
 
-  instance.setDebugMode(true)
-  instance.createBuffer('buffer2')
-  expect(spy).toHaveBeenCalled()
-})
+    expect(() => instance.emitBuffered(BUFFER_ID, EVENT_NAME)).toThrow(
+      ERR_BUFFER_NOT_FOUND
+    );
+  });
 
-test('getBuffer should return a copy of the buffer and prevent changes on the original buffer', () => {
+  it("should clear without emitting", () => {
+    const instance = new BufferedEventEmitter();
+    const handler = vi.fn();
+    instance.subscribe(EVENT_NAME, handler);
+
+    const buffer = instance.createBuffer(BUFFER_ID);
+    buffer.emit(EVENT_NAME, "event-data");
+    buffer.clean();
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("should not create buffer with existing id", () => {
+    const instance = new BufferedEventEmitter({});
+    const bufferId = "buffer-xpto";
+
+    instance.createBuffer(bufferId);
+
+    expect(() => instance.createBuffer(bufferId)).toThrow(
+      ERR_BUFFER_ALREADY_EXISTS
+    );
+  });
+
+  describe("flush", () => {
+    it("should call buffer flush event handler with buffer id, context and all events", () => {
+      const instance = new BufferedEventEmitter();
+      const handler = vi.fn();
+
+      instance.subscribe(FLUSH_BUFFER_EVENT_NAME, handler);
+
+      const buffer = instance.createBuffer(BUFFER_ID, { myContext: 123 });
+
+      buffer.emit(EVENT_NAME, "event-data-1");
+      buffer.emit(EVENT_NAME, "event-data-2");
+      buffer.flush();
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith(
+        BUFFER_ID,
+        { myContext: 123 },
+        {
+          [EVENT_NAME]: [["event-data-1"], ["event-data-2"]],
+        }
+      );
+    });
+
+    it("should call buffer flush event handler with multiple events", () => {
+      const instance = new BufferedEventEmitter();
+      const handler = vi.fn();
+
+      instance.subscribe(FLUSH_BUFFER_EVENT_NAME, handler);
+
+      const buffer = instance.createBuffer(BUFFER_ID, { myContext: 123 });
+
+      buffer.emit("event1", "event1-data-1");
+      buffer.emit("event1", "event1-data-2");
+      buffer.emit("event2", "event2-data-1");
+      buffer.emit("event2", "event2-data-2");
+
+      buffer.flush();
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith(
+        BUFFER_ID,
+        { myContext: 123 },
+        {
+          event1: [["event1-data-1"], ["event1-data-2"]],
+          event2: [["event2-data-1"], ["event2-data-2"]],
+        }
+      );
+    });
+
+    it("shoud work with multiple buffers at the same time", () => {
+      const instance = new BufferedEventEmitter({});
+      const handler = vi.fn();
+
+      instance.subscribe(FLUSH_BUFFER_EVENT_NAME, handler);
+      instance.createBuffer(1, "buffer 1");
+      instance.createBuffer(2, "buffer 2");
+
+      instance.emitBuffered(1, "foo", 11);
+      instance.emitBuffered(1, "bar", 12);
+      instance.emitBuffered(2, "foo", 21);
+
+      instance.flush(1);
+      instance.flush(2);
+
+      expect(handler).toHaveBeenCalledTimes(2);
+      expect(handler).toHaveBeenNthCalledWith(1, 1, "buffer 1", {
+        foo: [[11]],
+        bar: [[12]],
+      });
+      expect(handler).toHaveBeenNthCalledWith(2, 2, "buffer 2", {
+        foo: [[21]],
+      });
+    });
+
+    it("should throw if buffer doesnt exists", () => {
+      const instance = new BufferedEventEmitter();
+      expect(() => instance.flush(BUFFER_ID)).toThrow(ERR_BUFFER_NOT_FOUND);
+    });
+  });
+
+  describe("clean", () => {
+    it("should call buffer clean event handler with buffer id, context and all events", () => {
+      const instance = new BufferedEventEmitter();
+      const handler = vi.fn();
+
+      instance.subscribe(CLEAN_BUFFER_EVENT_NAME, handler);
+
+      const buffer = instance.createBuffer(BUFFER_ID, { myContext: 123 });
+
+      buffer.emit(EVENT_NAME, "event-data-1");
+      buffer.emit(EVENT_NAME, "event-data-2");
+      buffer.clean();
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith(
+        BUFFER_ID,
+        { myContext: 123 },
+        {
+          [EVENT_NAME]: [["event-data-1"], ["event-data-2"]],
+        }
+      );
+    });
+
+    it("should call buffer clean event handler with multiple events", () => {
+      const instance = new BufferedEventEmitter();
+      const handler = vi.fn();
+
+      instance.subscribe(CLEAN_BUFFER_EVENT_NAME, handler);
+
+      const buffer = instance.createBuffer(BUFFER_ID, { myContext: 123 });
+
+      buffer.emit("event1", "event1-data-1");
+      buffer.emit("event1", "event1-data-2");
+      buffer.emit("event2", "event2-data-1");
+      buffer.emit("event2", "event2-data-2");
+
+      buffer.clean();
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith(
+        BUFFER_ID,
+        { myContext: 123 },
+        {
+          event1: [["event1-data-1"], ["event1-data-2"]],
+          event2: [["event2-data-1"], ["event2-data-2"]],
+        }
+      );
+    });
+
+    it("shoud work with multiple buffers at the same time", () => {
+      const instance = new BufferedEventEmitter({});
+      const handler = vi.fn();
+
+      instance.subscribe(CLEAN_BUFFER_EVENT_NAME, handler);
+      instance.createBuffer(1, "buffer 1");
+      instance.createBuffer(2, "buffer 2");
+
+      instance.emitBuffered(1, "foo", 11);
+      instance.emitBuffered(1, "bar", 12);
+      instance.emitBuffered(2, "foo", 21);
+
+      instance.cleanBuffer(1);
+      instance.cleanBuffer(2);
+
+      expect(handler).toHaveBeenCalledTimes(2);
+      expect(handler).toHaveBeenNthCalledWith(1, 1, "buffer 1", {
+        foo: [[11]],
+        bar: [[12]],
+      });
+      expect(handler).toHaveBeenNthCalledWith(2, 2, "buffer 2", {
+        foo: [[21]],
+      });
+    });
+
+    it("should throw if buffer doesnt exists", () => {
+      const instance = new BufferedEventEmitter();
+      expect(() => instance.cleanBuffer(BUFFER_ID)).toThrow(
+        ERR_BUFFER_NOT_FOUND
+      );
+    });
+  });
+});
+
+describe("maintenance", () => {
+  it("maintenance should clean old buffers", async () => {
+    const instance = new BufferedEventEmitter({ ttl: 1 });
+    const id = "buffer1";
+    const handler = vi.fn();
+
+    instance.subscribe("foo", handler);
+    instance.createBuffer(id, { name: "Buffer 1" });
+    instance.emitBuffered(id, "foo", 1);
+
+    await sleep(2000);
+
+    // biome-ignore lint/complexity/useLiteralKeys: this is not a public method, but we can call it directly for testing purposes
+    instance["maintenance"]();
+
+    expect(() => instance.flush(id)).toThrow("BUFFER NOT FOUND");
+    expect(handler.mock.calls.length).toBe(0);
+  });
+
+  it("maintenance should clean only buffers older than TTL", async () => {
+    const instance = new BufferedEventEmitter({ ttl: 3 });
+    const id = "buffer1";
+    instance.createBuffer(id);
+
+    await sleep(1500);
+
+    // biome-ignore lint/complexity/useLiteralKeys: this is not a public method, but we can call it directly for testing purposes
+    instance["maintenance"]();
+    expect(instance.bufferExists(id)).toBe(true);
+
+    await sleep(3000);
+
+    // biome-ignore lint/complexity/useLiteralKeys: this is not a public method, but we can call it directly for testing purposes
+    instance["maintenance"]();
+    expect(instance.bufferExists(id)).toBe(false);
+  });
+});
+
+it("should enable debug log", () => {
+  const spy = vi.spyOn(console, "log");
+
   const instance = new BufferedEventEmitter();
-  const context = { name: 'Buffer 1' };
-  instance.createBuffer('buffer1', context);
+  instance.createBuffer("buffer1");
+  expect(spy).not.toHaveBeenCalled();
 
-  const buffer = instance.getBuffer('buffer1');
+  instance.setDebugMode(true);
+  instance.createBuffer("buffer2");
+  expect(spy).toHaveBeenCalled();
+});
+
+it("getBuffer should return a copy of the buffer and prevent changes on the original buffer", () => {
+  const instance = new BufferedEventEmitter();
+  const context = { name: "Buffer 1" };
+  instance.createBuffer("buffer1", context);
+
+  const buffer = instance.getBuffer("buffer1");
   expect(buffer.context).toEqual(context);
 
-  buffer.context.newProp = 'newValue';
-  expect(instance.getBuffer('buffer1').context).toEqual(context);
-})
+  // @ts-expect-error testing only
+  buffer.context.newProp = "newValue";
+  expect(instance.getBuffer("buffer1").context).toEqual(context);
+});
