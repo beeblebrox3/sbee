@@ -444,6 +444,65 @@ describe("maintenance", () => {
     instance["maintenance"]();
     expect(instance.bufferExists(id)).toBe(false);
   });
+
+  it("should clean expired uncleared buffers when maintenance chance hits", () => {
+    vi.useFakeTimers();
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.4);
+
+    try {
+      const initialDate = new Date("2026-01-01T00:00:00.000Z");
+      vi.setSystemTime(initialDate);
+
+      const instance = new BufferedEventEmitter({ ttl: 1, maintenanceChance: 50 });
+      const cleanHandler = vi.fn();
+
+      instance.subscribe(CLEAN_BUFFER_EVENT_NAME, cleanHandler);
+      instance.createBuffer("old-buffer");
+      instance.emitBuffered("old-buffer", EVENT_NAME, "still-buffered");
+
+      vi.setSystemTime(new Date(initialDate.getTime() + 2_000));
+      instance.createBuffer("new-buffer");
+
+      expect(instance.bufferExists("old-buffer")).toBe(false);
+      expect(instance.bufferExists("new-buffer")).toBe(true);
+      expect(cleanHandler).toHaveBeenCalledTimes(1);
+      expect(cleanHandler).toHaveBeenCalledWith(
+        "old-buffer",
+        {},
+        { [EVENT_NAME]: [["still-buffered"]] }
+      );
+    } finally {
+      randomSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("should keep expired buffers when maintenance chance does not hit", () => {
+    vi.useFakeTimers();
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.9);
+
+    try {
+      const initialDate = new Date("2026-01-01T00:00:00.000Z");
+      vi.setSystemTime(initialDate);
+
+      const instance = new BufferedEventEmitter({ ttl: 1, maintenanceChance: 50 });
+      const cleanHandler = vi.fn();
+
+      instance.subscribe(CLEAN_BUFFER_EVENT_NAME, cleanHandler);
+      instance.createBuffer("old-buffer");
+      instance.emitBuffered("old-buffer", EVENT_NAME, "still-buffered");
+
+      vi.setSystemTime(new Date(initialDate.getTime() + 2_000));
+      instance.createBuffer("new-buffer");
+
+      expect(instance.bufferExists("old-buffer")).toBe(true);
+      expect(instance.bufferExists("new-buffer")).toBe(true);
+      expect(cleanHandler).not.toHaveBeenCalled();
+    } finally {
+      randomSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
 });
 
 it("should enable debug log", () => {

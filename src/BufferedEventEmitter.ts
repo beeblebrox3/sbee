@@ -17,13 +17,36 @@ const BUFFER_RETENTION_PERIOD_SECONDS = 1;
 const MAINTENANCE_CHANCE = 100;
 
 export class BufferedEventEmitter {
+  /**
+   * Flag indicating whether debug mode is enabled.
+   * Currently, the only difference is that debug mode enables console.log output.
+   */
   private debug = false;
-  private map: Record<string, EventHandler[]> = {};
+
+  /**
+   * Map of event names to arrays of event handlers.
+   */
+  private eventListenersMap: Record<string, EventHandler[]> = {};
+
+  /**
+   * Stores the buffered messages.
+   */
   private bufferedMessages: BufferedEventEmitterBufferHash = {};
+
+  /**
+   * TimeToLive: time in seconds that a buffer can exist without activity.
+   * After this period it is no longer valid and may be removed by the maintenance process  .
+   */
   private ttl!: number;
+
+  /**
+   * Some method calls have a chance to trigger maintenance, which removes
+   * expired buffers that were not flushed. This number defines the chance
+   * (as a percentage) that maintenance runs on a method call.
+   */
   private maintenanceChance!: number;
 
-  constructor(options: BufferedEventEmitterOptions = {}) {
+  public constructor(options: BufferedEventEmitterOptions = {}) {
     this.setTTL(options.ttl ?? BUFFER_RETENTION_PERIOD_SECONDS);
     this.setMaintenanceChance(options.maintenanceChance ?? MAINTENANCE_CHANCE);
   }
@@ -100,9 +123,9 @@ export class BufferedEventEmitter {
 
     const buffer = this.internalGetBuffer(bufferId, true);
 
-    if (FLUSH_BUFFER_EVENT_NAME in this.map) {
+    if (FLUSH_BUFFER_EVENT_NAME in this.eventListenersMap) {
       this.log("Calling handlers for flush event");
-      this.map[FLUSH_BUFFER_EVENT_NAME].forEach(fn => {
+      this.eventListenersMap[FLUSH_BUFFER_EVENT_NAME].forEach(fn => {
         fn(
           buffer.id,
           structuredClone(buffer.context),
@@ -129,9 +152,9 @@ export class BufferedEventEmitter {
     this.log(`Cleaning buffer ${bufferId}`);
     const buffer = this.internalGetBuffer(bufferId, true);
 
-    if (CLEAN_BUFFER_EVENT_NAME in this.map) {
+    if (CLEAN_BUFFER_EVENT_NAME in this.eventListenersMap) {
       this.log("Calling clean for flush event");
-      this.map[CLEAN_BUFFER_EVENT_NAME].forEach(fn => {
+      this.eventListenersMap[CLEAN_BUFFER_EVENT_NAME].forEach(fn => {
         fn(
           buffer.id,
           structuredClone(buffer.context),
@@ -155,9 +178,9 @@ export class BufferedEventEmitter {
 
     if (eventName.length === 0) throw new Error("eventName cannot be empty");
 
-    if (!(eventName in this.map)) this.map[eventName] = [];
+    if (!(eventName in this.eventListenersMap)) this.eventListenersMap[eventName] = [];
 
-    this.map[eventName].push(fn);
+    this.eventListenersMap[eventName].push(fn);
     return this.unsubscribe.bind(this, eventName, fn);
   }
 
@@ -186,12 +209,12 @@ export class BufferedEventEmitter {
    * @param fn Handler to remove
    */
   public unsubscribe(eventName: string, fn: EventHandler): this {
-    if (!(eventName in this.map)) {
+    if (!(eventName in this.eventListenersMap)) {
       return this;
     }
 
-    const index = this.map[eventName].indexOf(fn);
-    if (index !== -1) this.map[eventName].splice(index, 1);
+    const index = this.eventListenersMap[eventName].indexOf(fn);
+    if (index !== -1) this.eventListenersMap[eventName].splice(index, 1);
     return this;
   }
 
@@ -213,7 +236,7 @@ export class BufferedEventEmitter {
    */
   public unsubscribeAll(eventNames: string[]): this {
     eventNames.forEach(name => {
-      name in this.map && delete this.map[name];
+      name in this.eventListenersMap && delete this.eventListenersMap[name];
     });
     return this;
   }
@@ -227,11 +250,11 @@ export class BufferedEventEmitter {
    */
   public emit(eventName: string, ...args: unknown[]): this {
     this.log(`Emitting event ${eventName}`);
-    if (!(eventName in this.map)) return this;
+    if (!(eventName in this.eventListenersMap)) return this;
 
     // clone arguments to prevent handlers from mutating them
     const eventContent = Object.freeze(structuredClone(args));
-    this.map[eventName].forEach(fn => {
+    this.eventListenersMap[eventName].forEach(fn => {
       fn(...eventContent);
     });
     return this;
