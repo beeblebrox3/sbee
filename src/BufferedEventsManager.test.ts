@@ -34,6 +34,75 @@ async function tryCollect(
   return false;
 }
 
+describe("Validation", () => {
+  describe("ttl", () => {
+    it("should reject negative", () => {
+      expect(
+        () =>
+          new BufferedEventEmitter({
+            ttl: -1,
+          })
+      ).toThrow("Invalid TTL: must be greater than 0");
+    });
+
+    it("should reject non-numeric", () => {
+      expect(
+        () =>
+          new BufferedEventEmitter({
+            // @ts-expect-error
+            ttl: "invalid",
+          })
+      ).toThrow("Invalid TTL: must be an integer");
+    });
+
+    it("should accept 1", () => {
+      expect(new BufferedEventEmitter({ ttl: 1 })).toBeDefined();
+    });
+  });
+
+  describe("maintenance chance", () => {
+    it("should reject negative", () => {
+      expect(
+        () =>
+          new BufferedEventEmitter({
+            maintenanceChance: -1,
+          })
+      ).toThrow(
+        "Invalid maintenanceChance: must be greater than 0 and lower than 100"
+      );
+    });
+
+    it("should reject greater than 100", () => {
+      expect(
+        () =>
+          new BufferedEventEmitter({
+            maintenanceChance: 101,
+          })
+      ).toThrow(
+        "Invalid maintenanceChance: must be greater than 0 and lower than 100"
+      );
+    });
+
+    it("should accept 50", () => {
+      expect(
+        new BufferedEventEmitter({
+          maintenanceChance: 50,
+        })
+      ).toBeDefined();
+    });
+
+    it("should reject non-numeric", () => {
+      expect(
+        () =>
+          new BufferedEventEmitter({
+            // @ts-expect-error
+            maintenanceChance: "invalid",
+          })
+      ).toThrow("Invalid maintenanceChance: must be numeric");
+    });
+  });
+});
+
 describe("Regular event emitter", () => {
   it("should call handler when event is emitted", () => {
     const instance = new BufferedEventEmitter();
