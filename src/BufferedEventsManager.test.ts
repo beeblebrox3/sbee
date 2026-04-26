@@ -210,6 +210,46 @@ describe("Regular event emitter", () => {
   });
 
   describe("unsubscribe", () => {
+    it("should no-op when unsubscribing from an event that does not exist", () => {
+      const instance = new BufferedEventEmitter();
+      const handler = vi.fn();
+
+      expect(instance.unsubscribe("missing-event", handler)).toBe(instance);
+    });
+
+    it("should subscribe and unsubscribe handler for multiple events using returned callback", () => {
+      const instance = new BufferedEventEmitter();
+      const handler = vi.fn();
+      const events = ["foo", "bar"];
+
+      const unsubscribeAll = instance.subscribeMultiple(events, handler);
+
+      instance.emit("foo", "first");
+      instance.emit("bar", "second");
+      expect(handler).toHaveBeenCalledTimes(2);
+      expect(handler).toHaveBeenNthCalledWith(1, "first");
+      expect(handler).toHaveBeenNthCalledWith(2, "second");
+
+      unsubscribeAll();
+
+      instance.emit("foo", "after-unsub");
+      instance.emit("bar", "after-unsub");
+      expect(handler).toHaveBeenCalledTimes(2);
+    });
+
+    it("should unsubscribe handler from multiple events", () => {
+      const instance = new BufferedEventEmitter();
+      const handler = vi.fn();
+      const events = ["foo", "bar"];
+
+      instance.subscribeMultiple(events, handler);
+      instance.unsubscribeMultiple(events, handler);
+
+      instance.emit("foo", "foo-value");
+      instance.emit("bar", "bar-value");
+      expect(handler).not.toHaveBeenCalled();
+    });
+
     it("should unsubscribe all", () => {
       const instance = new BufferedEventEmitter({});
 
@@ -560,6 +600,32 @@ describe("maintenance", () => {
     } finally {
       randomSpy.mockRestore();
       vi.useRealTimers();
+    }
+  });
+
+  it("should handle maintenance errors without failing buffer creation", () => {
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.1);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      const instance = new BufferedEventEmitter({
+        maintenanceChance: 100,
+      });
+
+      // @ts-expect-error testing failure path for private method
+      instance.maintenance = () => {
+        throw new Error("maintenance boom");
+      };
+
+      expect(() => instance.createBuffer("still-creates")).not.toThrow();
+      expect(instance.bufferExists("still-creates")).toBe(true);
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Failed to run maintenance.",
+        expect.any(Error)
+      );
+    } finally {
+      randomSpy.mockRestore();
+      errorSpy.mockRestore();
     }
   });
 });
