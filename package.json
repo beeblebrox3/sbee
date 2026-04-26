@@ -5,14 +5,15 @@
     "event emitter",
     "buffered event emitter"
   ],
-  "version": "3.1.1",
+  "version": "4.0.0",
   "homepage": "https://github.com/beeblebrox3/sbee",
   "license": "MIT",
   "engines": {
-    "node": ">=16"
+    "node": ">=20"
   },
+  "type": "module",
   "author": {
-    "email": "luish.faria@gmail.com",
+    "email": "mail@luishenrique.dev",
     "name": "Luís Henrique Faria",
     "url": "https://luishenrique.dev/"
   },
@@ -27,8 +28,8 @@
     "docs/*",
     "lib/*"
   ],
-  "main": "lib/BufferedEventEmitter.js",
-  "types": "lib/BufferedEventEmitter.d.ts",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
   "directories": {
     "doc": "./docs",
     "lib": "/lib"
@@ -39,23 +40,18 @@
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "build": "npm run compile && npm run docs",
-    "lint": "ts-standard",
-    "lint:fix": "ts-standard --fix",
+    "lint": "biome check",
+    "lint:fix": "biome check --write",
+    "format": "biome format --write",
     "prepublishOnly": "npm run build",
     "preversion": "npm run docs"
   },
   "devDependencies": {
-    "@vitest/coverage-istanbul": "^0.34.6",
-    "ts-standard": "^12.0.2",
-    "typedoc": "^0.25.4",
-    "typescript": "^5.3.2",
-    "vitest": "^0.34.6"
-  },
-  "ts-standard": {
-    "ignore": [
-      "docs",
-      "src/**/*.js",
-      "vitest.config.ts"
-    ]
+    "@biomejs/biome": "2.4.12",
+    "@types/node": "^25.6.0",
+    "@vitest/coverage-istanbul": "4.1.4",
+    "typedoc": "0.28.19",
+    "typescript": "6.0.3",
+    "vitest": "4.1.4"
   }
 }

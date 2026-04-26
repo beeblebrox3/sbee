@@ -1,0 +1,13 @@
+{
+  "entryPoints": ["./src/index.ts"],
+  "out": "./docs",
+
+  "name": "sbee - Simple Buffered Event Emitter",
+  "exclude": ["**/*.test.ts"],
+
+  "excludePrivate": false,
+  "excludeExternals": false,
+
+  "cleanOutputDir": true,
+  "excludeReferences": false
+}
