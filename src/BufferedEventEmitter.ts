@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type {
   BufferedEventEmitterBuffer,
-  BufferedEventEmitterBufferHash,
   BufferedEventEmitterOptions,
   CreatedBuffer,
   EventHandler,
@@ -26,12 +25,15 @@ export class BufferedEventEmitter {
   /**
    * Map of event names to arrays of event handlers.
    */
-  private eventListenersMap: Record<string, EventHandler[]> = {};
+  private eventListenersMap = new Map<string, EventHandler[]>();
 
   /**
    * Stores the buffered messages.
    */
-  private bufferedMessages: BufferedEventEmitterBufferHash = {};
+  private bufferedMessages = new Map<
+    string | number,
+    BufferedEventEmitterBuffer
+  >();
 
   /**
    * TimeToLive: time in seconds that a buffer can exist without activity.
@@ -69,17 +71,19 @@ export class BufferedEventEmitter {
     this.log(`Trying to create buffer ${bufferId}`);
     this.checkMaintenance();
 
-    if (bufferId in this.bufferedMessages)
+    if (this.bufferExists(bufferId)) {
       throw new Error(ERR_BUFFER_ALREADY_EXISTS);
+    }
 
-    const now = new Date();
-    this.bufferedMessages[bufferId] = {
+    const now = Date.now();
+    this.bufferedMessages.set(bufferId, {
       id: bufferId,
       context: structuredClone(context),
       created: now,
       lastActivity: now,
       events: {},
-    };
+    });
+
     this.log(`Buffer ${bufferId} created`);
 
     return {
@@ -108,7 +112,7 @@ export class BufferedEventEmitter {
     }
 
     buffer.events[eventName].push(structuredClone(args));
-    buffer.lastActivity = new Date();
+    buffer.lastActivity = Date.now();
 
     this.log(`Buffer ${bufferId} updated`);
     return this;
@@ -123,15 +127,15 @@ export class BufferedEventEmitter {
 
     const buffer = this.internalGetBuffer(bufferId, true);
 
-    if (FLUSH_BUFFER_EVENT_NAME in this.eventListenersMap) {
-      this.log("Calling handlers for flush event");
-      this.eventListenersMap[FLUSH_BUFFER_EVENT_NAME].forEach(fn => {
-        fn(
-          buffer.id,
-          structuredClone(buffer.context),
-          structuredClone(buffer.events)
-        );
-      });
+    this.log("Calling handlers for flush event");
+    const handlers = this.eventListenersMap.get(FLUSH_BUFFER_EVENT_NAME) ?? [];
+
+    for (const handler of handlers) {
+      handler(
+        buffer.id,
+        structuredClone(buffer.context),
+        structuredClone(buffer.events)
+      );
     }
 
     this.log("Calling handlers for buffered events");
@@ -141,7 +145,7 @@ export class BufferedEventEmitter {
       }
     }
 
-    delete this.bufferedMessages[bufferId];
+    this.bufferedMessages.delete(bufferId);
     return this;
   }
 
@@ -152,18 +156,18 @@ export class BufferedEventEmitter {
     this.log(`Cleaning buffer ${bufferId}`);
     const buffer = this.internalGetBuffer(bufferId, true);
 
-    if (CLEAN_BUFFER_EVENT_NAME in this.eventListenersMap) {
-      this.log("Calling clean for flush event");
-      this.eventListenersMap[CLEAN_BUFFER_EVENT_NAME].forEach(fn => {
-        fn(
-          buffer.id,
-          structuredClone(buffer.context),
-          structuredClone(buffer.events)
-        );
-      });
+    this.log("Calling clean for flush event");
+    const handlers = this.eventListenersMap.get(CLEAN_BUFFER_EVENT_NAME) ?? [];
+
+    for (const handler of handlers) {
+      handler(
+        buffer.id,
+        structuredClone(buffer.context),
+        structuredClone(buffer.events)
+      );
     }
 
-    delete this.bufferedMessages[bufferId];
+    this.bufferedMessages.delete(bufferId);
     return this;
   }
 
@@ -176,11 +180,17 @@ export class BufferedEventEmitter {
       throw new TypeError("eventName must be a string");
     }
 
-    if (eventName.length === 0) throw new Error("eventName cannot be empty");
+    if (eventName.length === 0) {
+      throw new Error("eventName cannot be empty");
+    }
 
-    if (!(eventName in this.eventListenersMap)) this.eventListenersMap[eventName] = [];
+    if (!this.eventListenersMap.has(eventName)) {
+      this.eventListenersMap.set(eventName, []);
+    }
 
-    this.eventListenersMap[eventName].push(fn);
+    const handlers = this.eventListenersMap.get(eventName)!;
+    handlers.push(fn);
+
     return this.unsubscribe.bind(this, eventName, fn);
   }
 
@@ -193,9 +203,11 @@ export class BufferedEventEmitter {
    * @see BufferedEventEmitter.subscribe
    */
   public subscribeMultiple(eventNames: string[], fn: EventHandler): () => void {
-    const unsubscribes = eventNames.map(eventName =>
-      this.subscribe(eventName, fn)
-    );
+    const unsubscribes: CallableFunction[] = [];
+    for (let i = 0; i < eventNames.length; i++) {
+      unsubscribes.push(this.subscribe(eventNames[i], fn));
+    }
+
     return () =>
       unsubscribes.forEach(unsubscribe => {
         unsubscribe();
@@ -209,12 +221,17 @@ export class BufferedEventEmitter {
    * @param fn Handler to remove
    */
   public unsubscribe(eventName: string, fn: EventHandler): this {
-    if (!(eventName in this.eventListenersMap)) {
+    if (!this.eventListenersMap.has(eventName)) {
       return this;
     }
 
-    const index = this.eventListenersMap[eventName].indexOf(fn);
-    if (index !== -1) this.eventListenersMap[eventName].splice(index, 1);
+    const handlers = this.eventListenersMap.get(eventName) ?? [];
+    const handlerIndex = handlers.indexOf(fn);
+
+    if (handlerIndex > -1) {
+      handlers.splice(handlerIndex, 1);
+    }
+
     return this;
   }
 
@@ -223,9 +240,7 @@ export class BufferedEventEmitter {
    * @see unsubscribe
    */
   public unsubscribeMultiple(eventNames: string[], fn: EventHandler): this {
-    const length = eventNames.length;
-
-    for (let i = 0; i < length; i++) {
+    for (let i = 0; i < eventNames.length; i++) {
       this.unsubscribe(eventNames[i], fn);
     }
     return this;
@@ -236,7 +251,7 @@ export class BufferedEventEmitter {
    */
   public unsubscribeAll(eventNames: string[]): this {
     eventNames.forEach(name => {
-      name in this.eventListenersMap && delete this.eventListenersMap[name];
+      this.eventListenersMap.delete(name);
     });
     return this;
   }
@@ -250,11 +265,14 @@ export class BufferedEventEmitter {
    */
   public emit(eventName: string, ...args: unknown[]): this {
     this.log(`Emitting event ${eventName}`);
-    if (!(eventName in this.eventListenersMap)) return this;
+
+    if (!this.eventListenersMap.has(eventName)) {
+      return this;
+    }
 
     // clone arguments to prevent handlers from mutating them
     const eventContent = Object.freeze(structuredClone(args));
-    this.eventListenersMap[eventName].forEach(fn => {
+    this.eventListenersMap.get(eventName)?.forEach(fn => {
       fn(...eventContent);
     });
     return this;
@@ -263,16 +281,18 @@ export class BufferedEventEmitter {
   /**
    * Checks if the buffer exists.
    */
-  public bufferExists(id: number | string): boolean {
-    return id in this.bufferedMessages;
+  public bufferExists(bufferId: number | string): boolean {
+    return this.bufferedMessages.has(bufferId);
   }
 
-  public getBuffer(id: number | string): BufferedEventEmitterBuffer {
-    return this.internalGetBuffer(id, true);
+  public getBuffer(bufferId: number | string): BufferedEventEmitterBuffer {
+    return this.internalGetBuffer(bufferId, true);
   }
 
-  private validateBufferExists(id: number | string): this {
-    if (!this.bufferExists(id)) throw new Error(ERR_BUFFER_NOT_FOUND);
+  private validateBufferExists(bufferId: number | string): this {
+    if (!this.bufferExists(bufferId)) {
+      throw new Error(ERR_BUFFER_NOT_FOUND);
+    }
     return this;
   }
 
@@ -286,8 +306,8 @@ export class BufferedEventEmitter {
     shouldCopy: boolean = false
   ): BufferedEventEmitterBuffer {
     this.validateBufferExists(bufferId);
-    const buffer = this.bufferedMessages[bufferId];
 
+    const buffer = this.bufferedMessages.get(bufferId)!;
     return shouldCopy ? structuredClone(buffer) : buffer;
   }
 
@@ -311,36 +331,43 @@ export class BufferedEventEmitter {
   private maintenance(): this {
     this.log("Running maintenance...");
 
-    const now = new Date();
-    Object.keys(this.bufferedMessages).forEach(id => {
-      const buffer = this.internalGetBuffer(id);
-
-      const diff = now.getTime() - buffer.lastActivity.getTime();
+    const now = Date.now();
+    this.bufferedMessages.forEach((buffer, id) => {
+      const diff = now - buffer.lastActivity;
       const seconds = Math.abs(diff / 1000);
 
       if (seconds > this.ttl) {
         this.cleanBuffer(id);
       }
     });
+
     return this;
   }
 
   private setTTL(ttl: number): this {
-    if (!Number.isSafeInteger(ttl))
+    if (!Number.isSafeInteger(ttl)) {
       throw new Error("Invalid TTL: must be an integer");
+    }
 
-    if (ttl < 1) throw new Error("Invalid TTL: must be greater than 0");
+    if (ttl < 1) {
+      throw new Error("Invalid TTL: must be greater than 0");
+    }
+
     this.ttl = ttl;
     return this;
   }
 
   private setMaintenanceChance(chance: number): this {
-    if (Number.isNaN(chance))
+    if (Number.isNaN(chance)) {
       throw new Error("Invalid maintenanceChance: must be numeric");
-    if (chance <= 0 || chance > 100)
+    }
+
+    if (chance <= 0 || chance > 100) {
       throw new Error(
         "Invalid maintenanceChance: must be greater than 0 and lower than 100"
       );
+    }
+
     this.maintenanceChance = chance;
     return this;
   }

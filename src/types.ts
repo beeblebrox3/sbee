@@ -42,15 +42,15 @@ export interface BufferedEventEmitterBuffer {
   context: unknown;
 
   /**
-   * Creation date of the buffer.
+   * Creation date of the buffer (timestamp).
    */
-  created: Date;
+  created: number;
 
   /**
    * Date of the last change to the buffer — usually the creation date of the last
-   * event.
+   * event. (timestamp)
    */
-  lastActivity: Date;
+  lastActivity: number;
 
   /**
    * Stores emitted events.

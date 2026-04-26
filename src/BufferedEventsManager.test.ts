@@ -1,3 +1,4 @@
+import { setImmediate } from "node:timers/promises";
 import { describe, expect, it, vi } from "vitest";
 import {
   BufferedEventEmitter,
@@ -10,8 +11,27 @@ import {
 const EVENT_NAME = "my-event";
 const BUFFER_ID = "buffer-id";
 
-async function sleep(ms: number) {
-  return await new Promise(resolve => setTimeout(resolve, ms));
+async function tryCollect(
+  weakRef: WeakRef<object>,
+  maxRounds: number = 40
+): Promise<boolean> {
+  if (!global.gc) {
+    throw new Error(
+      "This test requires --expose-gc. Run: NODE_OPTIONS=--expose-gc vitest (...)"
+    );
+  }
+
+  for (let i = 0; i < maxRounds; i++) {
+    global.gc?.();
+    await setImmediate();
+    global.gc?.();
+    await setImmediate();
+    if (weakRef.deref() === undefined) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 describe("Regular event emitter", () => {
@@ -409,42 +429,6 @@ describe("Buffered", () => {
 });
 
 describe("maintenance", () => {
-  it("maintenance should clean old buffers", async () => {
-    const instance = new BufferedEventEmitter({ ttl: 1 });
-    const id = "buffer1";
-    const handler = vi.fn();
-
-    instance.subscribe("foo", handler);
-    instance.createBuffer(id, { name: "Buffer 1" });
-    instance.emitBuffered(id, "foo", 1);
-
-    await sleep(2000);
-
-    // biome-ignore lint/complexity/useLiteralKeys: this is not a public method, but we can call it directly for testing purposes
-    instance["maintenance"]();
-
-    expect(() => instance.flush(id)).toThrow("BUFFER NOT FOUND");
-    expect(handler.mock.calls.length).toBe(0);
-  });
-
-  it("maintenance should clean only buffers older than TTL", async () => {
-    const instance = new BufferedEventEmitter({ ttl: 3 });
-    const id = "buffer1";
-    instance.createBuffer(id);
-
-    await sleep(1500);
-
-    // biome-ignore lint/complexity/useLiteralKeys: this is not a public method, but we can call it directly for testing purposes
-    instance["maintenance"]();
-    expect(instance.bufferExists(id)).toBe(true);
-
-    await sleep(3000);
-
-    // biome-ignore lint/complexity/useLiteralKeys: this is not a public method, but we can call it directly for testing purposes
-    instance["maintenance"]();
-    expect(instance.bufferExists(id)).toBe(false);
-  });
-
   it("should clean expired uncleared buffers when maintenance chance hits", () => {
     vi.useFakeTimers();
     const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.4);
@@ -453,7 +437,10 @@ describe("maintenance", () => {
       const initialDate = new Date("2026-01-01T00:00:00.000Z");
       vi.setSystemTime(initialDate);
 
-      const instance = new BufferedEventEmitter({ ttl: 1, maintenanceChance: 50 });
+      const instance = new BufferedEventEmitter({
+        ttl: 1,
+        maintenanceChance: 50,
+      });
       const cleanHandler = vi.fn();
 
       instance.subscribe(CLEAN_BUFFER_EVENT_NAME, cleanHandler);
@@ -485,7 +472,10 @@ describe("maintenance", () => {
       const initialDate = new Date("2026-01-01T00:00:00.000Z");
       vi.setSystemTime(initialDate);
 
-      const instance = new BufferedEventEmitter({ ttl: 1, maintenanceChance: 50 });
+      const instance = new BufferedEventEmitter({
+        ttl: 1,
+        maintenanceChance: 50,
+      });
       const cleanHandler = vi.fn();
 
       instance.subscribe(CLEAN_BUFFER_EVENT_NAME, cleanHandler);
@@ -528,4 +518,57 @@ it("getBuffer should return a copy of the buffer and prevent changes on the orig
   // @ts-expect-error testing only
   buffer.context.newProp = "newValue";
   expect(instance.getBuffer("buffer1").context).toEqual(context);
+});
+
+describe("memory references", () => {
+  it("unsubscribe should release listener reference", async () => {
+    const instance = new BufferedEventEmitter();
+    let listener: null | (() => void) = () => {};
+
+    instance.subscribe(EVENT_NAME, listener);
+    instance.unsubscribe(EVENT_NAME, listener);
+
+    const weakRef = new WeakRef(listener);
+    listener = null;
+
+    const collected = await tryCollect(weakRef);
+    expect(collected).toBe(true);
+  });
+
+  it("regular emit should not retain emitted payload", async () => {
+    const instance = new BufferedEventEmitter();
+    let received: { value: string } | null = null;
+
+    instance.subscribe(EVENT_NAME, payload => {
+      received = payload as { value: string };
+    });
+
+    instance.emit(EVENT_NAME, { value: "hello" });
+    expect(received).toEqual({ value: "hello" });
+    expect(received).not.toBeNull();
+
+    const weakRef = new WeakRef(received as unknown as object);
+    received = null;
+
+    const collected = await tryCollect(weakRef);
+    expect(collected).toBe(true);
+  });
+
+  it("buffered event payload should be retained until buffer is cleaned", async () => {
+    const instance = new BufferedEventEmitter();
+    const buffer = instance.createBuffer(BUFFER_ID);
+
+    buffer.emit(EVENT_NAME, { value: "buffered" });
+
+    // biome-ignore lint/complexity/useLiteralKeys: testing internal retention behavior
+    const weakRef = new WeakRef(instance["internalGetBuffer"](BUFFER_ID));
+
+    const collectedBeforeClean = await tryCollect(weakRef, 5);
+    expect(collectedBeforeClean).toBe(false);
+
+    buffer.clean();
+
+    const collectedAfterClean = await tryCollect(weakRef, 80);
+    expect(collectedAfterClean).toBe(true);
+  });
 });
