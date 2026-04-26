@@ -359,7 +359,7 @@ export class BufferedEventEmitter {
 
   private setMaintenanceChance(chance: number): this {
     if (Number.isNaN(chance)) {
-      throw new Error("Invalid maintenanceChance: must be numeric");
+      throw new TypeError("Invalid maintenanceChance: must be numeric");
     }
 
     if (chance <= 0 || chance > 100) {
