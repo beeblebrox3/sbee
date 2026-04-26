@@ -25,12 +25,12 @@ export class BufferedEventEmitter {
   /**
    * Map of event names to arrays of event handlers.
    */
-  private eventListenersMap = new Map<string, EventHandler[]>();
+  private readonly eventListenersMap = new Map<string, EventHandler[]>();
 
   /**
    * Stores the buffered messages.
    */
-  private bufferedMessages = new Map<
+  private readonly bufferedMessages = new Map<
     string | number,
     BufferedEventEmitterBuffer
   >();
@@ -204,8 +204,8 @@ export class BufferedEventEmitter {
    */
   public subscribeMultiple(eventNames: string[], fn: EventHandler): () => void {
     const unsubscribes: CallableFunction[] = [];
-    for (let i = 0; i < eventNames.length; i++) {
-      unsubscribes.push(this.subscribe(eventNames[i], fn));
+    for (const eventName of eventNames) {
+      unsubscribes.push(this.subscribe(eventName, fn));
     }
 
     return () =>
@@ -240,8 +240,8 @@ export class BufferedEventEmitter {
    * @see unsubscribe
    */
   public unsubscribeMultiple(eventNames: string[], fn: EventHandler): this {
-    for (let i = 0; i < eventNames.length; i++) {
-      this.unsubscribe(eventNames[i], fn);
+    for (const eventName of eventNames) {
+      this.unsubscribe(eventName, fn);
     }
     return this;
   }
@@ -346,7 +346,7 @@ export class BufferedEventEmitter {
 
   private setTTL(ttl: number): this {
     if (!Number.isSafeInteger(ttl)) {
-      throw new Error("Invalid TTL: must be an integer");
+      throw new TypeError("Invalid TTL: must be an integer");
     }
 
     if (ttl < 1) {
