@@ -4,10 +4,29 @@ export declare const ERR_BUFFER_ALREADY_EXISTS = "BUFFER ALREADY EXISTS";
 export declare const FLUSH_BUFFER_EVENT_NAME = "BUFFER:flush";
 export declare const CLEAN_BUFFER_EVENT_NAME = "BUFFER:clean";
 export declare class BufferedEventEmitter {
+    /**
+     * Flag indicating whether debug mode is enabled.
+     * Currently, the only difference is that debug mode enables console.log output.
+     */
     private debug;
-    private map;
-    private bufferedMessages;
+    /**
+     * Map of event names to arrays of event handlers.
+     */
+    private readonly eventListenersMap;
+    /**
+     * Stores the buffered messages.
+     */
+    private readonly bufferedMessages;
+    /**
+     * TimeToLive: time in seconds that a buffer can exist without activity.
+     * After this period it is no longer valid and may be removed by the maintenance process  .
+     */
     private ttl;
+    /**
+     * Some method calls have a chance to trigger maintenance, which removes
+     * expired buffers that were not flushed. This number defines the chance
+     * (as a percentage) that maintenance runs on a method call.
+     */
     private maintenanceChance;
     constructor(options?: BufferedEventEmitterOptions);
     /**
@@ -73,8 +92,8 @@ export declare class BufferedEventEmitter {
     /**
      * Checks if the buffer exists.
      */
-    bufferExists(id: number | string): boolean;
-    getBuffer(id: number | string): BufferedEventEmitterBuffer;
+    bufferExists(bufferId: number | string): boolean;
+    getBuffer(bufferId: number | string): BufferedEventEmitterBuffer;
     private validateBufferExists;
     /**
      * Returns a buffer. Unlike getBuffer, this method returns the original buffer by default
